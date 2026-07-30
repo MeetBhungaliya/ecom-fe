@@ -19,4 +19,5 @@ export const ROUTES = {
   // Tools
   FLEXI_GROWTH_OFFER: '/flexi-growth-offer',
   RETURN_OTPS: '/return-otps',
+  DOWNLOAD_APP: '/download-app',
 } as const;

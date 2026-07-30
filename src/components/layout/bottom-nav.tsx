@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router';
 import { cn } from '@/lib/cn';
 import { ROUTES } from '@/constants/routes';
-import { LayoutDashboard, Store } from 'lucide-react';
+import { LayoutDashboard, Store, Sparkles, KeyRound } from 'lucide-react';
 import { motion } from 'motion/react';
 
 type BottomNavItem = {
@@ -13,6 +13,8 @@ type BottomNavItem = {
 const MAIN_TABS: BottomNavItem[] = [
   { label: 'Home', href: ROUTES.DASHBOARD, icon: LayoutDashboard },
   { label: 'Accounts', href: ROUTES.ACCOUNTS, icon: Store },
+  { label: 'Flexi', href: ROUTES.FLEXI_GROWTH_OFFER, icon: Sparkles },
+  { label: 'OTPs', href: ROUTES.RETURN_OTPS, icon: KeyRound },
 ];
 
 export function BottomNav() {

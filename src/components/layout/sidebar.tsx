@@ -3,7 +3,7 @@ import { cn } from '@/lib/cn';
 import { useUIStore } from '@/store/ui.store';
 import { useKeyboardShortcut } from '@/hooks/use-keyboard-shortcut';
 import { ROUTES } from '@/constants/routes';
-import { LayoutDashboard, Store, ChevronLeft, ChevronRight, LogOut, KeyRound } from 'lucide-react';
+import { LayoutDashboard, Store, ChevronLeft, ChevronRight, LogOut, KeyRound, Download } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { getInitials } from '@/lib/formatters';
 
@@ -19,6 +19,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Accounts', href: ROUTES.ACCOUNTS, icon: Store },
   { label: 'Flexi Offers', href: ROUTES.FLEXI_GROWTH_OFFER, icon: Store },
   { label: 'Return OTPs', href: ROUTES.RETURN_OTPS, icon: KeyRound },
+  { label: 'Download App', href: ROUTES.DOWNLOAD_APP, icon: Download },
 ];
 
 export function Sidebar() {

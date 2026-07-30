@@ -14,6 +14,7 @@ const AccountsListPage = lazy(() => import('@/pages/accounts/list'));
 const AccountConnectPage = lazy(() => import('@/pages/accounts/connect'));
 const FlexiGrowthOfferPage = lazy(() => import('@/pages/flexi-growth-offer'));
 const ReturnOtpsPage = lazy(() => import('@/pages/return-otps'));
+const DownloadAppPage = lazy(() => import('@/pages/download-app'));
 const LoginPage = lazy(() => import('@/pages/auth/login'));
 const NotFoundPage = lazy(() => import('@/pages/not-found'));
 
@@ -118,6 +119,14 @@ export const router = createBrowserRouter([
         element: (
           <SuspenseWrapper>
             <ReturnOtpsPage />
+          </SuspenseWrapper>
+        ),
+      },
+      {
+        path: ROUTES.DOWNLOAD_APP,
+        element: (
+          <SuspenseWrapper>
+            <DownloadAppPage />
           </SuspenseWrapper>
         ),
       },
