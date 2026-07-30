@@ -13,6 +13,7 @@ const DashboardPage = lazy(() => import('@/pages/dashboard'));
 const AccountsListPage = lazy(() => import('@/pages/accounts/list'));
 const AccountConnectPage = lazy(() => import('@/pages/accounts/connect'));
 const FlexiGrowthOfferPage = lazy(() => import('@/pages/flexi-growth-offer'));
+const ReturnOtpsPage = lazy(() => import('@/pages/return-otps'));
 const LoginPage = lazy(() => import('@/pages/auth/login'));
 const NotFoundPage = lazy(() => import('@/pages/not-found'));
 
@@ -109,6 +110,14 @@ export const router = createBrowserRouter([
         element: (
           <SuspenseWrapper>
             <FlexiGrowthOfferPage />
+          </SuspenseWrapper>
+        ),
+      },
+      {
+        path: ROUTES.RETURN_OTPS,
+        element: (
+          <SuspenseWrapper>
+            <ReturnOtpsPage />
           </SuspenseWrapper>
         ),
       },
