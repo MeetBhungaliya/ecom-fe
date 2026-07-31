@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { ROUTES } from '@/constants/routes';
 import { Eye, EyeOff, Mail, Lock, ShieldAlert, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
-import { api } from '@/lib/api-client';
+import { api, setTokens } from '@/lib/api-client';
 import { toast } from 'sonner';
 import type { User } from '@/types';
 
@@ -47,8 +47,13 @@ export default function LoginPage() {
     try {
       const response = await api.post<{
         message: string;
-        data: { user: User };
+        data: { user: User; accessToken: string; refreshToken: string };
       }>('/login', values);
+
+      // Store tokens for Authorization header (Safari/Capacitor can't use cookies)
+      if (response.data.accessToken && response.data.refreshToken) {
+        setTokens(response.data.accessToken, response.data.refreshToken);
+      }
 
       setUser(response.data.user);
       toast.success('Successfully logged in.');

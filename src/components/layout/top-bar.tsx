@@ -29,7 +29,13 @@ export function TopBar() {
     accounts?.filter((a) => activeAccountIds.includes(a.id.toString())) || [];
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur-lg supports-[backdrop-filter]:bg-background/80 md:px-6">
+    <header
+      className="flex shrink-0 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur-lg supports-[backdrop-filter]:bg-background/80 md:px-6"
+      style={{
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        height: 'calc(3.5rem + env(safe-area-inset-top, 0px))',
+      }}
+    >
       {/* Mobile: Title */}
       {!isDesktop && (
         <div className="flex items-center gap-2.5">

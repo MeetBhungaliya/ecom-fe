@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User, Permission } from '@/types';
-import { api } from '@/lib/api-client';
+import { api, clearTokens } from '@/lib/api-client';
 
 let sessionCheckPromise: Promise<void> | null = null;
 
@@ -36,7 +36,10 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
       setUser: (user) => set({ user, isAuthenticated: true, isSessionVerified: true }),
 
-      clearAuth: () => set({ user: null, isAuthenticated: false, isSessionVerified: false }),
+      clearAuth: () => {
+        clearTokens();
+        set({ user: null, isAuthenticated: false, isSessionVerified: false });
+      },
 
       checkSession: async () => {
         const { isSessionVerified } = get();
@@ -66,6 +69,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         try {
           await api.post('/logout');
         } finally {
+          clearTokens();
           set({ user: null, isAuthenticated: false, isSessionVerified: false });
         }
       },

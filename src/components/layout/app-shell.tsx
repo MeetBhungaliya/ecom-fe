@@ -3,7 +3,6 @@ import { useIsDesktop } from '@/hooks/use-media-query';
 import { Sidebar } from './sidebar';
 import { BottomNav } from './bottom-nav';
 import { TopBar } from './top-bar';
-import { cn } from '@/lib/cn';
 import { useAuthStore } from '@/store/auth.store';
 import { useEffect, useState } from 'react';
 
@@ -57,11 +56,8 @@ export function AppShell() {
         <TopBar />
 
         <main
-          className={cn(
-            'flex-1 overflow-y-auto overflow-x-hidden',
-            // Add bottom padding on mobile for bottom nav
-            !isDesktop && 'pb-20',
-          )}
+          className="flex-1 overflow-y-auto overflow-x-hidden"
+          style={!isDesktop ? { paddingBottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' } : undefined}
         >
           <div className="mx-auto w-full max-w-7xl px-4 py-4 md:px-6 lg:px-8 lg:py-6">
             <Outlet />

@@ -1,7 +1,11 @@
 // ============================================
-// COOKIE-BASED API CLIENT
-// Centralized HTTP client with secure cookie-based auth, refresh,
-// error handling, and request/response interceptors.
+// HYBRID API CLIENT
+// Supports both cookie-based auth (Chrome same-origin) and
+// token-based auth (Safari cross-origin, Capacitor mobile).
+//
+// Tokens are returned in response body by the backend and stored
+// in memory + localStorage. Sent via Authorization header on
+// every request, bypassing Safari ITP and Capacitor cookie issues.
 // ============================================
 
 type RequestConfig = {
@@ -21,6 +25,56 @@ export type ApiError = {
 };
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8443';
+
+// --- Token Storage ---
+// In-memory for speed, backed by localStorage for persistence across reloads.
+// On Capacitor, you could swap localStorage for @capacitor/preferences if needed.
+
+const TOKEN_KEYS = {
+  access: 'comops-access-token',
+  refresh: 'comops-refresh-token',
+} as const;
+
+let accessToken: string | null = null;
+let refreshToken: string | null = null;
+
+// Hydrate from localStorage on module load
+try {
+  accessToken = localStorage.getItem(TOKEN_KEYS.access);
+  refreshToken = localStorage.getItem(TOKEN_KEYS.refresh);
+} catch {
+  // SSR or restricted storage — ignore
+}
+
+export function setTokens(access: string, refresh: string) {
+  accessToken = access;
+  refreshToken = refresh;
+  try {
+    localStorage.setItem(TOKEN_KEYS.access, access);
+    localStorage.setItem(TOKEN_KEYS.refresh, refresh);
+  } catch {
+    // Storage full or unavailable
+  }
+}
+
+export function clearTokens() {
+  accessToken = null;
+  refreshToken = null;
+  try {
+    localStorage.removeItem(TOKEN_KEYS.access);
+    localStorage.removeItem(TOKEN_KEYS.refresh);
+  } catch {
+    // Ignore
+  }
+}
+
+export function getAccessToken() {
+  return accessToken;
+}
+
+export function getRefreshToken() {
+  return refreshToken;
+}
 
 class ApiClient {
   private baseURL: string;
@@ -51,19 +105,27 @@ class ApiClient {
       headers['Content-Type'] = 'application/json';
     }
 
+    // Attach Authorization header if we have a token
+    if (accessToken && !headers['Authorization']) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+
     try {
       const response = await fetch(fullUrl.toString(), {
         method,
         headers,
         body: data ? JSON.stringify(data) : undefined,
         signal,
-        credentials: 'include', // Crucial for cookie-based auth
+        credentials: 'include', // Still send cookies when available (Chrome same-origin)
       });
 
       // Handle 401 — attempt token refresh (except when we are already trying to refresh or login)
       if (response.status === 401 && url !== '/refresh' && url !== '/login') {
         const refreshSuccess = await this.refreshAccessToken();
         if (refreshSuccess) {
+          // Update the Authorization header with the new token
+          headers['Authorization'] = `Bearer ${accessToken}`;
+
           // Retry original request
           const retryResponse = await fetch(fullUrl.toString(), {
             method,
@@ -80,8 +142,8 @@ class ApiClient {
           return retryResponse.json() as Promise<T>;
         }
 
-        // Refresh failed — clear local UI state and redirect
-        // Emit custom event to let Zustand store or App components know to clear auth
+        // Refresh failed — clear tokens and notify app
+        clearTokens();
         window.dispatchEvent(new CustomEvent('auth:unauthorized'));
         throw await this.buildError(response);
       }
@@ -127,11 +189,36 @@ class ApiClient {
 
   private async performRefresh(): Promise<boolean> {
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      // Include current access token if available (may still be valid for identity)
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       const response = await fetch(`${this.baseURL}/refresh`, {
         method: 'POST',
-        credentials: 'include',
+        headers,
+        // Send refresh token in body for Safari/Capacitor (cookies won't be sent cross-origin)
+        body: JSON.stringify({ refreshToken }),
+        credentials: 'include', // Still send cookies when available
       });
-      return response.ok;
+
+      if (response.ok) {
+        const result = (await response.json()) as {
+          data: { accessToken?: string; refreshToken?: string };
+        };
+
+        // Store new tokens from response body
+        if (result.data.accessToken && result.data.refreshToken) {
+          setTokens(result.data.accessToken, result.data.refreshToken);
+        }
+        return true;
+      }
+
+      return false;
     } catch {
       return false;
     }
