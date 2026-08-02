@@ -1,6 +1,3 @@
-import { User, Mail, Phone, Hash, ShieldCheck, ShieldAlert, RefreshCw, Pencil, Trash2, Zap } from 'lucide-react';
-import type { MarketplaceAccount } from '@/types';
-import { useIsDesktop } from '@/hooks/use-media-query';
 import {
   Dialog,
   DialogContent,
@@ -13,6 +10,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { useIsDesktop } from '@/hooks/use-media-query';
+import type { MarketplaceAccount } from '@/types';
+import { Hash, Mail, Pencil, Phone, RefreshCw, ShieldAlert, ShieldCheck, Trash2 } from 'lucide-react';
 
 interface AccountDetailsDialogProps {
   open: boolean;

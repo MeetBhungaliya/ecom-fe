@@ -35,6 +35,7 @@ export type MarketplaceAccount = BaseEntity & {
   sellerId?: string;
   status?: Status;
   lastSyncAt?: string | null;
+  autoAcceptOrders?: boolean | null;
   supplierData?: {
     id: string;
     email: string;
