@@ -11,6 +11,12 @@ export const ROUTES = {
   // Main
   DASHBOARD: '/dashboard',
 
+  // Inventory
+  INVENTORY: '/inventory',
+  INVENTORY_ADD: '/inventory/add',
+  INVENTORY_EDIT: (id: string) => `/inventory/${id}/edit` as const,
+  INVENTORY_ANALYTICS: '/inventory/analytics',
+
   // Marketplace Accounts
   ACCOUNTS: '/accounts',
   ACCOUNT_CONNECT: '/accounts/connect',
@@ -21,3 +27,4 @@ export const ROUTES = {
   RETURN_OTPS: '/return-otps',
   DOWNLOAD_APP: '/download-app',
 } as const;
+

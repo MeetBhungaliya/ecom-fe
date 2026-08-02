@@ -2,6 +2,7 @@ import { RefreshCw, Phone, KeyRound, AlertCircle, Clock, Package, Truck } from '
 import { useMarketplaceStore } from '@/store/marketplace.store';
 import { useReturnOtps } from '@/hooks/use-return-otps';
 import type { ReturnOtpData } from '@/hooks/use-return-otps';
+import { useIsDesktop } from '@/hooks/use-media-query';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/cn';
 import { format, parseISO, differenceInMilliseconds, isValid } from 'date-fns';
@@ -319,6 +320,7 @@ function LoadingSkeleton() {
 
 export default function ReturnOtpsPage() {
   const activeAccountIds = useMarketplaceStore((s) => s.activeAccountIds);
+  const isDesktop = useIsDesktop();
   const { data: accountsData, isLoading, isRefetching, refetch, error } = useReturnOtps(activeAccountIds);
 
   const isFetching = isLoading || isRefetching;
@@ -329,14 +331,17 @@ export default function ReturnOtpsPage() {
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-            Return OTPs
-          </h1>
-          <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground">
-            Delivery OTPs across {activeAccountIds.length} active account{activeAccountIds.length !== 1 ? 's' : ''}.
-          </p>
-        </div>
+        {!isDesktop && (
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+              Return OTPs
+            </h1>
+            <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground">
+              Delivery OTPs across {activeAccountIds.length} active account{activeAccountIds.length !== 1 ? 's' : ''}.
+            </p>
+          </div>
+        )}
+        {isDesktop && <div />}
         <button
           onClick={() => refetch()}
           disabled={isFetching}

@@ -101,7 +101,8 @@ class ApiClient {
     }
 
     // Set content type
-    if (data && !headers['Content-Type']) {
+    const isFormData = data instanceof FormData;
+    if (data && !headers['Content-Type'] && !isFormData) {
       headers['Content-Type'] = 'application/json';
     }
 
@@ -114,7 +115,7 @@ class ApiClient {
       const response = await fetch(fullUrl.toString(), {
         method,
         headers,
-        body: data ? JSON.stringify(data) : undefined,
+        body: data ? (isFormData ? (data as any) : JSON.stringify(data)) : undefined,
         signal,
         credentials: 'include', // Still send cookies when available (Chrome same-origin)
       });
@@ -130,7 +131,7 @@ class ApiClient {
           const retryResponse = await fetch(fullUrl.toString(), {
             method,
             headers,
-            body: data ? JSON.stringify(data) : undefined,
+            body: data ? (isFormData ? (data as any) : JSON.stringify(data)) : undefined,
             signal,
             credentials: 'include',
           });

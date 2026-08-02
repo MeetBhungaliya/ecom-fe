@@ -166,18 +166,24 @@ function ActivityItem({ activity }: { activity: (typeof RECENT_ACTIVITY)[0] }) {
   );
 }
 
+import { useIsDesktop } from '@/hooks/use-media-query';
+
 // --- Page ---
 
 export default function DashboardPage() {
+  const isDesktop = useIsDesktop();
+
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Dashboard</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Overview of your commerce operations across all marketplaces.
-        </p>
-      </div>
+      {!isDesktop && (
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Dashboard</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Overview of your commerce operations across all marketplaces.
+          </p>
+        </div>
+      )}
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

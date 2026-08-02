@@ -37,6 +37,18 @@ export function useTransmitJob() {
         eventSourceFactory: (url, options) => {
           return new EventSource(url, { ...options, withCredentials: true });
         },
+        beforeSubscribe: (request) => {
+          const token = localStorage.getItem('comops-access-token');
+          if (token) {
+            request.headers.set('Authorization', `Bearer ${token}`);
+          }
+        },
+        beforeUnsubscribe: (request) => {
+          const token = localStorage.getItem('comops-access-token');
+          if (token) {
+            request.headers.set('Authorization', `Bearer ${token}`);
+          }
+        },
       });
     }
 

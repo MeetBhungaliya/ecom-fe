@@ -1,6 +1,7 @@
 import { Plus, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useAccounts } from '@/hooks/use-accounts';
+import { useIsDesktop } from '@/hooks/use-media-query';
 
 function getInitials(name?: string) {
   if (!name) return 'S';
@@ -9,17 +10,21 @@ function getInitials(name?: string) {
 
 export default function AccountsListPage() {
   const navigate = useNavigate();
+  const isDesktop = useIsDesktop();
   const { data: accounts, isLoading } = useAccounts();
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Marketplace Accounts</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Manage your connected seller accounts.
-          </p>
-        </div>
+        {!isDesktop && (
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Marketplace Accounts</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Manage your connected seller accounts.
+            </p>
+          </div>
+        )}
+        {isDesktop && <div />}
         <button
           onClick={() => navigate('/accounts/connect')}
           className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 active:scale-[0.98]"

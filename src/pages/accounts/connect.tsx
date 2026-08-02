@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAddAccount } from '@/hooks/use-accounts';
+import { useIsDesktop } from '@/hooks/use-media-query';
 import { Loader2 } from 'lucide-react';
 
 const connectSchema = z.object({
@@ -15,6 +16,7 @@ type ConnectFormValues = z.infer<typeof connectSchema>;
 
 export default function AccountConnectPage() {
   const navigate = useNavigate();
+  const isDesktop = useIsDesktop();
   const { mutate: addAccount, isPending } = useAddAccount();
   const [error, setError] = useState('');
 
@@ -47,13 +49,15 @@ export default function AccountConnectPage() {
   };
 
   return (
-    <div className="mx-auto max-w-md space-y-6 pt-10">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Connect Meesho Account</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Connect your Meesho seller account to start managing your listings.
-        </p>
-      </div>
+    <div className={`mx-auto max-w-md space-y-6 ${isDesktop ? 'pt-2' : 'pt-10'}`}>
+      {!isDesktop && (
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Connect Meesho Account</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Connect your Meesho seller account to start managing your listings.
+          </p>
+        </div>
+      )}
 
       <form
         onSubmit={handleSubmit(onSubmit)}

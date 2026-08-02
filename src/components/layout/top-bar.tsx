@@ -11,14 +11,32 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/cn';
 
+import { useLocation } from 'react-router';
+
 function getInitials(name?: string) {
   if (!name) return 'A';
   return name.substring(0, 2).toUpperCase();
 }
 
+const getPageTitle = (pathname: string) => {
+  if (pathname === '/dashboard') return 'Dashboard';
+  if (pathname === '/inventory') return 'Inventory';
+  if (pathname === '/inventory/add') return 'Add Product';
+  if (pathname.startsWith('/inventory/') && pathname.endsWith('/edit')) return 'Edit Product';
+  if (pathname === '/inventory/analytics') return 'Inventory Analytics';
+  if (pathname === '/accounts') return 'Marketplace Accounts';
+  if (pathname === '/accounts/connect') return 'Connect Meesho Account';
+  if (pathname === '/flexi-growth-offer') return 'Flexi Growth Offer';
+  if (pathname === '/return-otps') return 'Return OTPs';
+  if (pathname === '/download-app') return 'Get the Mobile App';
+  return '';
+};
+
 export function TopBar() {
   const isDesktop = useIsDesktop();
   const isOnline = useOnlineStatus();
+  const { pathname } = useLocation();
+  const pageTitle = getPageTitle(pathname);
 
   // Account selection
   const { data: accounts, isLoading: accountsLoading } = useAccounts();
@@ -44,6 +62,11 @@ export function TopBar() {
           </div>
           <span className="text-base font-semibold tracking-tight">Ecom Manager</span>
         </div>
+      )}
+
+      {/* Desktop: Title */}
+      {isDesktop && pageTitle && (
+        <h1 className="text-lg font-semibold tracking-tight text-foreground">{pageTitle}</h1>
       )}
 
       <div className="flex-1" />

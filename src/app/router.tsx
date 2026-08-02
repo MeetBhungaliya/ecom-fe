@@ -10,6 +10,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 // ============================================
 
 const DashboardPage = lazy(() => import('@/pages/dashboard'));
+const InventoryListPage = lazy(() => import('@/pages/inventory/list'));
+const InventoryAddPage = lazy(() => import('@/pages/inventory/add'));
+const InventoryEditPage = lazy(() => import('@/pages/inventory/edit'));
+const InventoryAnalyticsPage = lazy(() => import('@/pages/inventory/analytics'));
 const AccountsListPage = lazy(() => import('@/pages/accounts/list'));
 const AccountConnectPage = lazy(() => import('@/pages/accounts/connect'));
 const FlexiGrowthOfferPage = lazy(() => import('@/pages/flexi-growth-offer'));
@@ -83,6 +87,40 @@ export const router = createBrowserRouter([
         element: (
           <SuspenseWrapper>
             <DashboardPage />
+          </SuspenseWrapper>
+        ),
+      },
+
+      // Inventory
+      {
+        path: ROUTES.INVENTORY,
+        element: (
+          <SuspenseWrapper>
+            <InventoryListPage />
+          </SuspenseWrapper>
+        ),
+      },
+      {
+        path: ROUTES.INVENTORY_ADD,
+        element: (
+          <SuspenseWrapper>
+            <InventoryAddPage />
+          </SuspenseWrapper>
+        ),
+      },
+      {
+        path: '/inventory/:id/edit',
+        element: (
+          <SuspenseWrapper>
+            <InventoryEditPage />
+          </SuspenseWrapper>
+        ),
+      },
+      {
+        path: ROUTES.INVENTORY_ANALYTICS,
+        element: (
+          <SuspenseWrapper>
+            <InventoryAnalyticsPage />
           </SuspenseWrapper>
         ),
       },

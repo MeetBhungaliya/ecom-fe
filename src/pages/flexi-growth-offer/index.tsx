@@ -25,6 +25,7 @@ import {
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { useIsDesktop } from '@/hooks/use-media-query';
 
 // ============================================
 // FORM SCHEMA
@@ -46,6 +47,7 @@ type FormValues = z.infer<typeof formSchema>;
 export default function FlexiGrowthOfferPage() {
   const { data: accounts } = useAccounts();
   const activeAccountIds = useMarketplaceStore((s) => s.activeAccountIds);
+  const isDesktop = useIsDesktop();
 
   // Use the first active account for this operation
   const currentAccountId = activeAccountIds[0];
@@ -170,15 +172,17 @@ export default function FlexiGrowthOfferPage() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2">
-          <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-          Flexi Growth Offer
-        </h1>
-        <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground">
-          Bulk apply promotions to multiple products at once.
-        </p>
-      </div>
+      {!isDesktop && (
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2">
+            <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+            Flexi Growth Offer
+          </h1>
+          <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground">
+            Bulk apply promotions to multiple products at once.
+          </p>
+        </div>
+      )}
 
       {/* Two-panel layout — stacks on mobile */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">

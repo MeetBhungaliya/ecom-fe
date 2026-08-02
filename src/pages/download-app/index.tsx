@@ -1,16 +1,25 @@
 import { Smartphone, Download, CheckCircle2, MonitorSmartphone } from 'lucide-react';
+import { useIsDesktop } from '@/hooks/use-media-query';
 
 export default function DownloadAppPage() {
+  const isDesktop = useIsDesktop();
+
   return (
     <div className="mx-auto max-w-4xl space-y-8 p-4 md:p-8 animate-in fade-in duration-500">
-      <div className="text-center space-y-3 mt-4 mb-10">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mb-6">
-          <MonitorSmartphone className="h-8 w-8 text-primary" />
-        </div>
-        <h1 className="text-3xl font-bold tracking-tight">Get the Mobile App</h1>
-        <p className="text-muted-foreground max-w-lg mx-auto">
-          Manage your e-commerce operations on the go. Download our native application for iOS and Android devices.
-        </p>
+      <div className={`text-center space-y-3 mt-4 ${isDesktop ? 'mb-2' : 'mb-10'}`}>
+        {!isDesktop && (
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mb-6">
+            <MonitorSmartphone className="h-8 w-8 text-primary" />
+          </div>
+        )}
+        {!isDesktop && (
+          <>
+            <h1 className="text-3xl font-bold tracking-tight">Get the Mobile App</h1>
+            <p className="text-muted-foreground max-w-lg mx-auto">
+              Manage your e-commerce operations on the go. Download our native application for iOS and Android devices.
+            </p>
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
