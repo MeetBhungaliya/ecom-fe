@@ -16,10 +16,10 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', href: ROUTES.DASHBOARD, icon: LayoutDashboard },
-  { label: 'Inventory', href: ROUTES.INVENTORY, icon: Package },
-  { label: 'Accounts', href: ROUTES.ACCOUNTS, icon: Store },
-  { label: 'Flexi Offers', href: ROUTES.FLEXI_GROWTH_OFFER, icon: Store },
+  { label: 'Marketplace', href: ROUTES.ACCOUNTS, icon: Store },
   { label: 'Return OTPs', href: ROUTES.RETURN_OTPS, icon: KeyRound },
+  { label: 'Inventory', href: ROUTES.INVENTORY, icon: Package },
+  { label: 'Flexi Offers', href: ROUTES.FLEXI_GROWTH_OFFER, icon: Store },
   { label: 'Download App', href: ROUTES.DOWNLOAD_APP, icon: Download },
 ];
 
