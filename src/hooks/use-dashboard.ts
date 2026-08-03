@@ -3,17 +3,21 @@ import { api } from '@/lib/api-client';
 
 export const dashboardKeys = {
   all: ['dashboard'] as const,
-  stats: () => [...dashboardKeys.all, 'stats'] as const,
+  stats: (accountIds?: string[]) => [...dashboardKeys.all, 'stats', { accountIds }] as const,
 };
 
 export type DashboardStats = {
   acceptedOrdersToday: number;
 };
 
-export function useDashboardStats() {
+export function useDashboardStats(accountIds?: string[]) {
   return useQuery({
-    queryKey: dashboardKeys.stats(),
-    queryFn: () => api.get<{ data: DashboardStats }>('/dashboard/stats'),
+    queryKey: dashboardKeys.stats(accountIds),
+    queryFn: () =>
+      api.get<{ data: DashboardStats }>(
+        '/accounts/dashboard/stats',
+        accountIds ? { accountIds: accountIds.join(',') } : undefined
+      ),
     select: (res) => res.data,
   });
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { Transmit } from '@adonisjs/transmit-client';
 import { useAuthStore } from '@/store/auth.store';
+import { useMarketplaceStore } from '@/store/marketplace.store';
 import { useDashboardStats } from '@/hooks/use-dashboard';
 import {
   Package,
@@ -65,43 +66,13 @@ const INITIAL_STATS = [
   },
 ];
 
-const INITIAL_RECENT_ACTIVITY = [
-  {
-    id: '1',
-    action: 'New order received',
-    detail: 'Order #ORD-7842 from Meesho',
-    time: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-    type: 'order',
-  },
-  {
-    id: '2',
-    action: 'Product synced',
-    detail: '12 products synced to Meesho',
-    time: new Date(Date.now() - 1000 * 60 * 23).toISOString(),
-    type: 'sync',
-  },
-  {
-    id: '3',
-    action: 'Low stock alert',
-    detail: 'SKU-4521 has only 3 units left',
-    time: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-    type: 'alert',
-  },
-  {
-    id: '4',
-    action: 'Order dispatched',
-    detail: 'Order #ORD-7838 marked as shipped',
-    time: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-    type: 'order',
-  },
-  {
-    id: '5',
-    action: 'Price updated',
-    detail: 'Bulk price update on 24 products',
-    time: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
-    type: 'product',
-  },
-];
+const INITIAL_RECENT_ACTIVITY: Array<{
+  id: string;
+  action: string;
+  detail: string;
+  time: string;
+  type: string;
+}> = [];
 
 const ALERTS = [
   { id: '1', title: '3 orders pending dispatch', severity: 'warning' as const },
@@ -110,6 +81,64 @@ const ALERTS = [
 ];
 
 // --- Components ---
+
+function AnimatedNumber({ value }: { value: string }) {
+  const numericVal = parseFloat(value.replace(/,/g, '').replace(/[^0-9.]/g, ''));
+  const isNumeric = !isNaN(numericVal);
+  const prefix = value.match(/^[^\d]*/)?.[0] || '';
+  const suffix = value.match(/[^\d]*$/)?.[0] || '';
+
+  const [displayCount, setDisplayCount] = useState<number>(isNumeric ? numericVal : 0);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const prevValRef = useRef(numericVal);
+
+  useEffect(() => {
+    if (!isNumeric) return;
+
+    if (prevValRef.current !== numericVal) {
+      setIsUpdating(true);
+      const timer = setTimeout(() => setIsUpdating(false), 700);
+
+      const start = prevValRef.current;
+      const end = numericVal;
+      const startTime = performance.now();
+      const duration = 600;
+
+      const animate = (currentTime: number) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        // Easing function (easeOutExpo)
+        const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+        const current = start + (end - start) * ease;
+        setDisplayCount(Math.round(current));
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          prevValRef.current = end;
+        }
+      };
+
+      requestAnimationFrame(animate);
+      return () => clearTimeout(timer);
+    }
+  }, [numericVal, isNumeric]);
+
+  if (!isNumeric) return <span>{value}</span>;
+
+  return (
+    <span
+      className={cn(
+        'inline-block transition-all duration-300 transform',
+        isUpdating && 'scale-110 text-primary font-extrabold'
+      )}
+    >
+      {prefix}
+      {displayCount.toLocaleString()}
+      {suffix}
+    </span>
+  );
+}
 
 function StatCard({
   label,
@@ -125,9 +154,11 @@ function StatCard({
       <div className="flex items-start justify-between">
         <div className="space-y-2">
           <p className="text-sm font-medium text-muted-foreground">{label}</p>
-          <p className="text-2xl font-bold tracking-tight text-foreground">{value}</p>
+          <p className="text-2xl font-bold tracking-tight text-foreground">
+            <AnimatedNumber value={value} />
+          </p>
         </div>
-        <div className={cn('rounded-lg p-2.5', bgColor)}>
+        <div className={cn('rounded-lg p-2.5 transition-transform duration-300 group-hover:scale-110', bgColor)}>
           <Icon className={cn('h-5 w-5', color)} />
         </div>
       </div>
@@ -185,7 +216,8 @@ function ActivityItem({ activity }: { activity: any }) {
 export default function DashboardPage() {
   const isDesktop = useIsDesktop();
   const user = useAuthStore((s) => s.user);
-  const { data: statsData } = useDashboardStats();
+  const activeAccountIds = useMarketplaceStore((s) => s.activeAccountIds);
+  const { data: statsData } = useDashboardStats(activeAccountIds);
 
   const [activities, setActivities] = useState(INITIAL_RECENT_ACTIVITY);
   const [stats, setStats] = useState(INITIAL_STATS);
@@ -308,9 +340,15 @@ export default function DashboardPage() {
               </button>
             </div>
             <div className="divide-y divide-border/50 px-2 py-1">
-              {activities.map((activity) => (
-                <ActivityItem key={activity.id} activity={activity} />
-              ))}
+              {activities.length > 0 ? (
+                activities.map((activity) => (
+                  <ActivityItem key={activity.id} activity={activity} />
+                ))
+              ) : (
+                <div className="py-8 text-center text-xs text-muted-foreground">
+                  No recent activity yet. Live events (e.g. auto-accepted orders) will appear here in real-time.
+                </div>
+              )}
             </div>
           </div>
         </div>
