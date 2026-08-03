@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Transmit } from '@adonisjs/transmit-client';
 
 export interface FailedItem {
-  productId: string;
+  productId?: string;
+  catalogId?: string;
   reason: string;
 }
 
@@ -14,6 +15,7 @@ export interface JobState {
   failedCount: number;
   failedItems: FailedItem[];
   errorMessage: string;
+  logs: { type: 'success' | 'error' | 'info'; message: string; timestamp: number }[];
 }
 
 const initialState: JobState = {
@@ -24,6 +26,7 @@ const initialState: JobState = {
   failedCount: 0,
   failedItems: [],
   errorMessage: '',
+  logs: [],
 };
 
 export function useTransmitJob() {
@@ -78,6 +81,7 @@ export function useTransmitJob() {
           processed?: number;
           status?: 'success' | 'failed';
           productId?: string;
+          catalogId?: string;
           error?: string;
           successCount?: number;
           failedCount?: number;
@@ -93,6 +97,7 @@ export function useTransmitJob() {
               successCount: 0,
               failedCount: 0,
               failedItems: [],
+              logs: [{ type: 'info', message: `Job started. Processing ${data.total} items...`, timestamp: Date.now() }],
             }));
           } else if (data.type === 'progress') {
             setJobState((prev) => {
@@ -100,15 +105,24 @@ export function useTransmitJob() {
                 ...prev,
                 status: 'progress' as const,
                 processed: data.processed ?? prev.processed,
+                logs: [...prev.logs]
               };
+              
+              const identifier = data.productId || data.catalogId || 'Item';
               if (data.status === 'success') {
                 newState.successCount = prev.successCount + 1;
+                newState.logs.push({ type: 'success', message: `Successfully processed ${identifier}`, timestamp: Date.now() });
               } else if (data.status === 'failed') {
                 newState.failedCount = prev.failedCount + 1;
-                if (data.productId && data.error) {
+                newState.logs.push({ type: 'error', message: `Failed to process ${identifier}: ${data.error}`, timestamp: Date.now() });
+                if ((data.productId || data.catalogId) && data.error) {
                   newState.failedItems = [
                     ...prev.failedItems,
-                    { productId: data.productId, reason: data.error },
+                    { 
+                      productId: data.productId, 
+                      catalogId: data.catalogId,
+                      reason: data.error 
+                    },
                   ];
                 }
               }
@@ -121,6 +135,7 @@ export function useTransmitJob() {
               successCount: data.successCount ?? prev.successCount,
               failedCount: data.failedCount ?? prev.failedCount,
               failedItems: data.failedItems || prev.failedItems,
+              logs: [...prev.logs, { type: 'info', message: 'Job completed.', timestamp: Date.now() }]
             }));
             callbacks?.onCompleted?.();
           } else if (data.type === 'error') {
@@ -129,6 +144,7 @@ export function useTransmitJob() {
               ...prev,
               status: 'error',
               errorMessage: errMsg,
+              logs: [...prev.logs, { type: 'error', message: `Fatal error: ${errMsg}`, timestamp: Date.now() }]
             }));
             callbacks?.onError?.(errMsg);
           }

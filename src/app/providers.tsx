@@ -21,7 +21,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
         {/* Toast notifications */}
         <Toaster
-          position="bottom-right"
+          position="top-center"
           expand={false}
           richColors
           closeButton

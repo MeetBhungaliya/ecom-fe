@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { ActionButton } from '@/components/ui/action-button';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,7 +16,6 @@ import { format } from 'date-fns';
 import {
   Calendar as CalendarIcon,
   CheckCircle2,
-  Loader2,
   PlayCircle,
   RotateCcw,
   XCircle,
@@ -325,18 +325,14 @@ export default function FlexiGrowthOfferPage() {
                 )}
               </div>
 
-              <Button
+              <ActionButton
                 type="submit"
                 disabled={isSubmitting || !currentAccount}
-                className="w-full font-semibold rounded-xl mt-2"
+                loading={isSubmitting}
+                icon={PlayCircle}
               >
-                {isSubmitting ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <PlayCircle className="mr-2 h-4 w-4" />
-                )}
                 Run Offer
-              </Button>
+              </ActionButton>
             </form>
           </CardContent>
         </Card>

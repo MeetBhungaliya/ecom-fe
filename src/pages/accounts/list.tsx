@@ -1,24 +1,24 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
-import { toast } from 'sonner';
-import {
-  Plus,
-  Loader2,
-  RefreshCw,
-  Pencil,
-  Trash2,
-  Eye,
-  ShieldCheck,
-  ShieldAlert,
-  Zap,
-  Store,
-} from 'lucide-react';
-import { useAccounts, useUpdateAccount, useRetryLogin } from '@/hooks/use-accounts';
+import { AccountDetailsDialog } from '@/components/accounts/account-details-dialog';
+import { DeleteAccountDialog } from '@/components/accounts/delete-account-dialog';
+import { EditAccountDialog } from '@/components/accounts/edit-account-dialog';
+import { Switch } from '@/components/ui/switch';
+import { useAccounts, useRetryLogin, useUpdateAccount } from '@/hooks/use-accounts';
 import { useAccountsTransmit } from '@/hooks/use-accounts-transmit';
 import type { MarketplaceAccount } from '@/types';
-import { EditAccountDialog } from '@/components/accounts/edit-account-dialog';
-import { DeleteAccountDialog } from '@/components/accounts/delete-account-dialog';
-import { AccountDetailsDialog } from '@/components/accounts/account-details-dialog';
+import {
+  Eye,
+  Pencil,
+  Plus,
+  RefreshCw,
+  ShieldAlert,
+  ShieldCheck,
+  Store,
+  Trash2,
+  Zap
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
 
 function getInitials(name?: string) {
   if (!name) return 'MK';
@@ -36,9 +36,23 @@ export default function AccountsListPage() {
 
   const [reconnectingId, setReconnectingId] = useState<string | number | null>(null);
   const [togglingAutoAcceptId, setTogglingAutoAcceptId] = useState<string | number | null>(null);
-  const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<MarketplaceAccount | null>(null);
-  const [selectedAccountForEdit, setSelectedAccountForEdit] = useState<MarketplaceAccount | null>(null);
-  const [selectedAccountForDelete, setSelectedAccountForDelete] = useState<MarketplaceAccount | null>(null);
+  const [selectedAccountForDetails, setSelectedAccountForDetails] =
+    useState<MarketplaceAccount | null>(null);
+  const [selectedAccountForEdit, setSelectedAccountForEdit] = useState<MarketplaceAccount | null>(
+    null,
+  );
+  const [selectedAccountForDelete, setSelectedAccountForDelete] =
+    useState<MarketplaceAccount | null>(null);
+
+  // Reset reconnectingId once the account sync is finished (no longer pending)
+  useEffect(() => {
+    if (reconnectingId && accounts) {
+      const account = accounts.find((a) => a.id === reconnectingId);
+      if (account && account.sessionStatus !== 'pending') {
+        setReconnectingId(null);
+      }
+    }
+  }, [accounts, reconnectingId]);
 
   const handleReconnect = (account: MarketplaceAccount) => {
     setReconnectingId(account.id);
@@ -132,7 +146,8 @@ export default function AccountsListPage() {
           </div>
           <h3 className="text-lg font-bold text-foreground">No Connected Accounts</h3>
           <p className="mt-1 text-sm text-muted-foreground max-w-sm">
-            Connect your Meesho seller account to start syncing products, orders, and managing return delivery OTPs.
+            Connect your Meesho seller account to start syncing products, orders, and managing
+            return delivery OTPs.
           </p>
           <button
             type="button"
@@ -173,7 +188,9 @@ export default function AccountsListPage() {
                     ) : (
                       <span
                         className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-background ${
-                          isActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-rose-500'
+                          isActive
+                            ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]'
+                            : 'bg-rose-500'
                         }`}
                         title={`Status: ${account.sessionStatus}`}
                       />
@@ -198,8 +215,8 @@ export default function AccountsListPage() {
                         isReconnectingThis
                           ? 'text-amber-600 dark:text-amber-400'
                           : isActive
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-rose-600 dark:text-rose-400'
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-rose-600 dark:text-rose-400'
                       }`}
                     >
                       {isReconnectingThis ? (
@@ -226,33 +243,20 @@ export default function AccountsListPage() {
                     <div className="flex items-center gap-2">
                       <Zap
                         className={`h-4 w-4 ${
-                          isAutoAcceptEnabled ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground'
+                          isAutoAcceptEnabled
+                            ? 'text-amber-500 fill-amber-500'
+                            : 'text-muted-foreground'
                         }`}
                       />
                       <span className="font-medium text-foreground">Auto Accept Orders</span>
                     </div>
 
-                    <button
-                      type="button"
+                    <Switch
+                      checked={isAutoAcceptEnabled}
                       disabled={isTogglingAutoAccept}
-                      onClick={() => handleToggleAutoAccept(account)}
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden disabled:opacity-50 ${
-                        isAutoAcceptEnabled ? 'bg-primary' : 'bg-muted-foreground/30'
-                      }`}
-                      title={isAutoAcceptEnabled ? 'Disable Auto Accept' : 'Enable Auto Accept'}
-                    >
-                      {isTogglingAutoAccept ? (
-                        <span className="absolute inset-0 flex items-center justify-center">
-                          <Loader2 className="h-3 w-3 animate-spin text-white" />
-                        </span>
-                      ) : (
-                        <span
-                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                            isAutoAcceptEnabled ? 'translate-x-5' : 'translate-x-0'
-                          }`}
-                        />
-                      )}
-                    </button>
+                      onCheckedChange={() => handleToggleAutoAccept(account)}
+                      aria-label="Toggle auto accept orders"
+                    />
                   </div>
                 </div>
 

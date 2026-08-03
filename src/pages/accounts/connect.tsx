@@ -6,6 +6,8 @@ import { z } from 'zod';
 import { useAddAccount } from '@/hooks/use-accounts';
 import { useIsDesktop } from '@/hooks/use-media-query';
 import { Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 const connectSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Invalid email address'),
@@ -72,11 +74,10 @@ export default function AccountConnectPage() {
           <label className="text-sm font-medium" htmlFor="email">
             Email
           </label>
-          <input
+          <Input
             id="email"
             type="email"
             {...register('email')}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             placeholder="seller@example.com"
           />
           {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
@@ -86,20 +87,19 @@ export default function AccountConnectPage() {
           <label className="text-sm font-medium" htmlFor="password">
             Password
           </label>
-          <input
+          <Input
             id="password"
             type="password"
             {...register('password')}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             placeholder="Enter your password"
           />
           {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
         </div>
 
-        <button
+        <Button
           type="submit"
           disabled={isPending}
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          className="mt-4 w-full"
         >
           {isPending ? (
             <>
@@ -109,7 +109,7 @@ export default function AccountConnectPage() {
           ) : (
             'Connect Account'
           )}
-        </button>
+        </Button>
       </form>
     </div>
   );

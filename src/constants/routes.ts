@@ -23,8 +23,9 @@ export const ROUTES = {
   ACCOUNT_DETAIL: (id: string) => `/accounts/${id}` as const,
 
   // Tools
+  ADVERTISEMENT: '/advertisement',
+  ADVERTISEMENT_CONFIG: '/advertisement/config',
   FLEXI_GROWTH_OFFER: '/flexi-growth-offer',
   RETURN_OTPS: '/return-otps',
   DOWNLOAD_APP: '/download-app',
 } as const;
-

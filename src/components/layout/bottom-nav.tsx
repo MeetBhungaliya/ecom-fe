@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink } from 'react-router';
 import { cn } from '@/lib/cn';
 import { ROUTES } from '@/constants/routes';
-import { LayoutDashboard, Store, KeyRound, MoreHorizontal, Package, Sparkles, Download, X, LogOut } from 'lucide-react';
+import { LayoutDashboard, Store, KeyRound, MoreHorizontal, Package, Sparkles, Download, X, LogOut, Megaphone } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuthStore } from '@/store/auth.store';
 import { getInitials } from '@/lib/formatters';
@@ -24,6 +24,7 @@ const PRIMARY_TABS: NavItem[] = [
 const MORE_ITEMS: NavItem[] = [
   { label: 'Inventory', href: ROUTES.INVENTORY, icon: Package },
   { label: 'Flexi Offers', href: ROUTES.FLEXI_GROWTH_OFFER, icon: Sparkles },
+  { label: 'Ads Manager', href: ROUTES.ADVERTISEMENT, icon: Megaphone },
   { label: 'Download App', href: ROUTES.DOWNLOAD_APP, icon: Download },
 ];
 

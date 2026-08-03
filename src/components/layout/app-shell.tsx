@@ -1,21 +1,29 @@
-import { Outlet, Navigate } from 'react-router';
+import { Outlet, Navigate, useLocation } from 'react-router';
 import { useIsDesktop } from '@/hooks/use-media-query';
 import { Sidebar } from './sidebar';
 import { BottomNav } from './bottom-nav';
 import { TopBar } from './top-bar';
 import { useAuthStore } from '@/store/auth.store';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 export function AppShell() {
   const isDesktop = useIsDesktop();
   const { isAuthenticated, checkSession } = useAuthStore();
   const [isChecking, setIsChecking] = useState(true);
+  const location = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     checkSession().finally(() => {
       setIsChecking(false);
     });
   }, [checkSession]);
+
+  useEffect(() => {
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+    }
+  }, [location.pathname]);
 
   if (isChecking) {
     return (
@@ -56,6 +64,7 @@ export function AppShell() {
         <TopBar />
 
         <main
+          ref={mainRef}
           className="flex-1 overflow-y-auto overflow-x-hidden"
           style={!isDesktop ? { paddingBottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' } : undefined}
         >

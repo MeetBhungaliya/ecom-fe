@@ -19,6 +19,8 @@ const AccountConnectPage = lazy(() => import('@/pages/accounts/connect'));
 const FlexiGrowthOfferPage = lazy(() => import('@/pages/flexi-growth-offer'));
 const ReturnOtpsPage = lazy(() => import('@/pages/return-otps'));
 const DownloadAppPage = lazy(() => import('@/pages/download-app'));
+const AdvertisementPage = lazy(() => import('@/pages/advertisement'));
+const AdConfigPage = lazy(() => import('@/pages/advertisement/config'));
 const LoginPage = lazy(() => import('@/pages/auth/login'));
 const NotFoundPage = lazy(() => import('@/pages/not-found'));
 
@@ -26,7 +28,7 @@ const NotFoundPage = lazy(() => import('@/pages/not-found'));
 // PAGE LOADING FALLBACK
 // ============================================
 
-function PageLoader() {
+export function PageLoader() {
   return (
     <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8 animate-in fade-in duration-500">
       {/* Header Skeleton */}
@@ -165,6 +167,22 @@ export const router = createBrowserRouter([
         element: (
           <SuspenseWrapper>
             <DownloadAppPage />
+          </SuspenseWrapper>
+        ),
+      },
+      {
+        path: ROUTES.ADVERTISEMENT,
+        element: (
+          <SuspenseWrapper>
+            <AdvertisementPage />
+          </SuspenseWrapper>
+        ),
+      },
+      {
+        path: ROUTES.ADVERTISEMENT_CONFIG,
+        element: (
+          <SuspenseWrapper>
+            <AdConfigPage />
           </SuspenseWrapper>
         ),
       },
