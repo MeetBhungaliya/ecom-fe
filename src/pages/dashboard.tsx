@@ -1,3 +1,7 @@
+import { useEffect, useState, useRef } from 'react';
+import { Transmit } from '@adonisjs/transmit-client';
+import { useAuthStore } from '@/store/auth.store';
+import { useDashboardStats } from '@/hooks/use-dashboard';
 import {
   Package,
   ShoppingCart,
@@ -8,19 +12,30 @@ import {
   Activity,
   Clock,
   AlertCircle,
+  CheckCircle2,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { formatCurrency, formatPercentage } from '@/lib/formatters';
 import { timeAgo } from '@/lib/date';
+import { useIsDesktop } from '@/hooks/use-media-query';
 
 // ============================================
 // DASHBOARD PAGE
 // Shows key metrics, recent activity, and alerts.
-// Uses mock data until API is connected.
+// Uses mock data and real data for accepted orders via SSE.
 // ============================================
 
 // --- Mock data ---
-const STATS = [
+const INITIAL_STATS = [
+  {
+    label: 'Accepted Orders',
+    value: '0',
+    change: 0,
+    trend: 'neutral' as const,
+    icon: CheckCircle2,
+    color: 'text-primary',
+    bgColor: 'bg-primary/10',
+  },
   {
     label: 'Total Revenue',
     value: formatCurrency(1847293),
@@ -29,15 +44,6 @@ const STATS = [
     icon: TrendingUp,
     color: 'text-success',
     bgColor: 'bg-success/10',
-  },
-  {
-    label: 'Active Orders',
-    value: '342',
-    change: -0.032,
-    trend: 'down' as const,
-    icon: ShoppingCart,
-    color: 'text-primary',
-    bgColor: 'bg-primary/10',
   },
   {
     label: 'Products Listed',
@@ -59,7 +65,7 @@ const STATS = [
   },
 ];
 
-const RECENT_ACTIVITY = [
+const INITIAL_RECENT_ACTIVITY = [
   {
     id: '1',
     action: 'New order received',
@@ -105,7 +111,15 @@ const ALERTS = [
 
 // --- Components ---
 
-function StatCard({ label, value, change, trend, icon: Icon, color, bgColor }: (typeof STATS)[0]) {
+function StatCard({
+  label,
+  value,
+  change,
+  trend,
+  icon: Icon,
+  color,
+  bgColor,
+}: (typeof INITIAL_STATS)[0]) {
   return (
     <div className="group relative overflow-hidden rounded-xl border border-border bg-card p-5 transition-all duration-200 hover:border-border/80 hover:shadow-md">
       <div className="flex items-start justify-between">
@@ -143,7 +157,7 @@ function StatCard({ label, value, change, trend, icon: Icon, color, bgColor }: (
   );
 }
 
-function ActivityItem({ activity }: { activity: (typeof RECENT_ACTIVITY)[0] }) {
+function ActivityItem({ activity }: { activity: any }) {
   const iconMap = {
     order: ShoppingCart,
     sync: Activity,
@@ -153,7 +167,7 @@ function ActivityItem({ activity }: { activity: (typeof RECENT_ACTIVITY)[0] }) {
   const Icon = iconMap[activity.type as keyof typeof iconMap] || Activity;
 
   return (
-    <div className="flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-accent/50">
+    <div className="flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-accent/50 animate-in fade-in slide-in-from-top-2 duration-300">
       <div className="mt-0.5 rounded-md bg-muted p-1.5">
         <Icon className="h-3.5 w-3.5 text-muted-foreground" />
       </div>
@@ -166,12 +180,95 @@ function ActivityItem({ activity }: { activity: (typeof RECENT_ACTIVITY)[0] }) {
   );
 }
 
-import { useIsDesktop } from '@/hooks/use-media-query';
-
 // --- Page ---
 
 export default function DashboardPage() {
   const isDesktop = useIsDesktop();
+  const user = useAuthStore((s) => s.user);
+  const { data: statsData } = useDashboardStats();
+
+  const [activities, setActivities] = useState(INITIAL_RECENT_ACTIVITY);
+  const [stats, setStats] = useState(INITIAL_STATS);
+  const transmitRef = useRef<Transmit | null>(null);
+
+  // Sync initial API stats
+  useEffect(() => {
+    if (statsData) {
+      setStats((prev) =>
+        prev.map((stat) =>
+          stat.label === 'Accepted Orders'
+            ? { ...stat, value: statsData.acceptedOrdersToday.toLocaleString() }
+            : stat,
+        ),
+      );
+    }
+  }, [statsData]);
+
+  // Transmit SSE Listener for Live Activities
+  useEffect(() => {
+    if (!user?.id) return;
+
+    if (!transmitRef.current) {
+      transmitRef.current = new Transmit({
+        baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:3333',
+        eventSourceFactory: (url, options) => {
+          return new EventSource(url, { ...options, withCredentials: true });
+        },
+        beforeSubscribe: (request) => {
+          const token = localStorage.getItem('comops-access-token');
+          if (token) {
+            request.headers.set('Authorization', `Bearer ${token}`);
+          }
+        },
+        beforeUnsubscribe: (request) => {
+          const token = localStorage.getItem('comops-access-token');
+          if (token) {
+            request.headers.set('Authorization', `Bearer ${token}`);
+          }
+        },
+      });
+    }
+
+    const transmit = transmitRef.current;
+    let subscription: ReturnType<Transmit['subscription']> | null = null;
+
+    async function subscribe() {
+      if (!transmit || !user?.id) return;
+
+      try {
+        subscription = transmit.subscription(`accounts/${user.id}`);
+        await subscription.create();
+
+        subscription.onMessage((data: any) => {
+          if (data?.type === 'activity' && data.activity) {
+            // Prepend new activity
+            setActivities((prev) => [data.activity, ...prev].slice(0, 10)); // keep last 10
+
+            // Update Accepted Orders Stat Card
+            if (data.acceptedOrdersToday !== undefined) {
+              setStats((prev) =>
+                prev.map((stat) =>
+                  stat.label === 'Accepted Orders'
+                    ? { ...stat, value: data.acceptedOrdersToday.toLocaleString() }
+                    : stat,
+                ),
+              );
+            }
+          }
+        });
+      } catch (err) {
+        console.error('Failed to subscribe to dashboard Transmit SSE:', err);
+      }
+    }
+
+    subscribe();
+
+    return () => {
+      if (subscription) {
+        subscription.delete().catch(() => {});
+      }
+    };
+  }, [user?.id]);
 
   return (
     <div className="space-y-6">
@@ -187,7 +284,7 @@ export default function DashboardPage() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {STATS.map((stat) => (
+        {stats.map((stat) => (
           <StatCard key={stat.label} {...stat} />
         ))}
       </div>
@@ -201,13 +298,17 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
                 <h2 className="text-base font-semibold text-foreground">Recent Activity</h2>
+                <span className="relative flex h-2 w-2 ml-1">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                </span>
               </div>
               <button className="text-xs font-medium text-primary hover:text-primary/80 transition-colors">
                 View all
               </button>
             </div>
             <div className="divide-y divide-border/50 px-2 py-1">
-              {RECENT_ACTIVITY.map((activity) => (
+              {activities.map((activity) => (
                 <ActivityItem key={activity.id} activity={activity} />
               ))}
             </div>
@@ -254,7 +355,7 @@ export default function DashboardPage() {
               <h2 className="text-base font-semibold text-foreground">Quick Actions</h2>
             </div>
             <div className="p-3">
-              <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-border/50 bg-muted/30 p-4 text-sm font-medium text-foreground transition-all hover:border-primary/30 hover:bg-primary/5 hover:text-primary active:scale-[0.98]">
+              <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-border/50 bg-muted/30 p-4 text-sm font-medium text-foreground transition-all hover:border-primary/30 hover:bg-primary/5 hover:text-primary active:scale-[0.98] cursor-pointer">
                 <Store className="h-5 w-5" />
                 <span className="text-xs">Connect Account</span>
               </button>

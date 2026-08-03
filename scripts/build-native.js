@@ -161,6 +161,10 @@ function main() {
   console.log('\n========== Web ==========');
   run('npm run build');
 
+  if (!fs.existsSync(androidPath)) {
+    run('npx cap add android');
+  }
+
   if (!fs.existsSync(iosPath)) {
     run('npx cap add ios');
   }
