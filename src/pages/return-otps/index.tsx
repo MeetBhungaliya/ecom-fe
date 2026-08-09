@@ -1,17 +1,18 @@
-import { RefreshCw, Phone, KeyRound, AlertCircle, Clock, Package, Truck } from 'lucide-react';
-import { useMarketplaceStore } from '@/store/marketplace.store';
-import { useReturnOtps } from '@/hooks/use-return-otps';
 import type { ReturnOtpData } from '@/hooks/use-return-otps';
-import { useIsDesktop } from '@/hooks/use-media-query';
-import { motion, AnimatePresence } from 'motion/react';
+import { useReturnOtps } from '@/hooks/use-return-otps';
 import { cn } from '@/lib/cn';
-import { format, parseISO, differenceInMilliseconds, isValid } from 'date-fns';
+import { useMarketplaceStore } from '@/store/marketplace.store';
+import { differenceInMilliseconds, format, isValid, parseISO } from 'date-fns';
+import { AlertCircle, Clock, KeyRound, Package, Phone, Truck } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 
 // ============================================
 // TYPES
 // ============================================
 
-type CarrierEntry = NonNullable<NonNullable<ReturnOtpData['data']>['supplier_delivery_otp']>[number];
+type CarrierEntry = NonNullable<
+  NonNullable<ReturnOtpData['data']>['supplier_delivery_otp']
+>[number];
 
 // ============================================
 // HELPERS
@@ -29,7 +30,8 @@ function formatExpiryTime(timestamp: string): {
 } {
   try {
     const expiry = parseISO(timestamp);
-    if (!isValid(expiry)) return { countdown: '—', localTime: '—', isExpired: false, isUrgent: false };
+    if (!isValid(expiry))
+      return { countdown: '—', localTime: '—', isExpired: false, isUrgent: false };
 
     const now = new Date();
     const diff = differenceInMilliseconds(expiry, now);
@@ -94,11 +96,7 @@ function EmptyState() {
 
 function OtpDisplay({ otp }: { otp?: string }) {
   if (!otp) {
-    return (
-      <span className="text-[11px] font-medium text-muted-foreground/60 italic">
-        No OTP
-      </span>
-    );
+    return <span className="text-[11px] font-medium text-muted-foreground/60 italic">No OTP</span>;
   }
 
   return (
@@ -122,10 +120,12 @@ function CarrierRow({ courier }: { courier: CarrierEntry }) {
       {/* Carrier info row */}
       <div className="flex items-center gap-2.5 mb-2.5">
         {/* Carrier logo or fallback icon */}
-        <div className={cn(
-          'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border overflow-hidden',
-          iconUrl ? 'bg-white/90' : color.bg,
-        )}>
+        <div
+          className={cn(
+            'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border overflow-hidden',
+            iconUrl ? 'bg-white/90' : color.bg,
+          )}
+        >
           {iconUrl ? (
             <img src={iconUrl} alt={displayName} className="h-full w-full object-contain" />
           ) : (
@@ -134,7 +134,9 @@ function CarrierRow({ courier }: { courier: CarrierEntry }) {
         </div>
 
         <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-semibold text-foreground capitalize truncate leading-tight">{displayName}</h4>
+          <h4 className="text-sm font-semibold text-foreground capitalize truncate leading-tight">
+            {displayName}
+          </h4>
           <span className="text-[10px] text-muted-foreground font-medium">
             {courier.count} shipment{courier.count !== 1 ? 's' : ''}
           </span>
@@ -147,16 +149,22 @@ function CarrierRow({ courier }: { courier: CarrierEntry }) {
 
         {expiry && (
           <div className="text-right shrink-0">
-            <div className={cn(
-              'flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold justify-end',
-              expiry.isExpired ? 'text-destructive' :
-              expiry.isUrgent ? 'text-amber-500' :
-              'text-muted-foreground'
-            )}>
+            <div
+              className={cn(
+                'flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold justify-end',
+                expiry.isExpired
+                  ? 'text-destructive'
+                  : expiry.isUrgent
+                    ? 'text-amber-500'
+                    : 'text-muted-foreground',
+              )}
+            >
               <Clock className="h-3 w-3" />
               <span>{expiry.countdown}</span>
             </div>
-            <p className="text-[9px] sm:text-[10px] text-muted-foreground/60 mt-0.5">{expiry.localTime}</p>
+            <p className="text-[9px] sm:text-[10px] text-muted-foreground/60 mt-0.5">
+              {expiry.localTime}
+            </p>
           </div>
         )}
       </div>
@@ -192,16 +200,14 @@ function AccountCard({ account }: { account: ReturnOtpData }) {
           </div>
         )}
 
-        {carriers.length > 0 ? (
-          carriers.map((courier, idx) => <CarrierRow key={idx} courier={courier} />)
-        ) : (
-          !account.error && (
-            <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground/50">
-              <Package className="h-7 w-7 mb-2" />
-              <span className="text-xs font-medium">No pending OTPs</span>
-            </div>
-          )
-        )}
+        {carriers.length > 0
+          ? carriers.map((courier, idx) => <CarrierRow key={idx} courier={courier} />)
+          : !account.error && (
+              <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground/50">
+                <Package className="h-7 w-7 mb-2" />
+                <span className="text-xs font-medium">No pending OTPs</span>
+              </div>
+            )}
       </div>
     </div>
   );
@@ -246,7 +252,9 @@ function ReturnsSummary({ accountsData }: { accountsData: ReturnOtpData[] }) {
     >
       <div className="flex items-center gap-2 border-b border-border/40 px-4 py-3.5 sm:px-5">
         <Package className="h-4.5 w-4.5 text-muted-foreground" />
-        <h3 className="text-[14px] sm:text-lg font-bold text-foreground">Return Shipments Summary</h3>
+        <h3 className="text-[14px] sm:text-lg font-bold text-foreground">
+          Return Shipments Summary
+        </h3>
         <span className="ml-auto shrink-0 rounded-full bg-primary/10 px-3 py-1 text-[14px] sm:text-sm font-bold tabular-nums text-primary">
           {grandTotal} Total
         </span>
@@ -320,38 +328,12 @@ function LoadingSkeleton() {
 
 export default function ReturnOtpsPage() {
   const activeAccountIds = useMarketplaceStore((s) => s.activeAccountIds);
-  const isDesktop = useIsDesktop();
-  const { data: accountsData, isLoading, isRefetching, refetch, error } = useReturnOtps(activeAccountIds);
-
-  const isFetching = isLoading || isRefetching;
+  const { data: accountsData, isLoading, error } = useReturnOtps(activeAccountIds);
 
   if (activeAccountIds.length === 0) return <EmptyState />;
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        {!isDesktop && (
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-              Return OTPs
-            </h1>
-            <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground">
-              Delivery OTPs across {activeAccountIds.length} active account{activeAccountIds.length !== 1 ? 's' : ''}.
-            </p>
-          </div>
-        )}
-        {isDesktop && <div />}
-        <button
-          onClick={() => refetch()}
-          disabled={isFetching}
-          className="shrink-0 inline-flex items-center gap-2 rounded-xl border border-border/50 bg-card/80 px-3.5 py-2 text-xs sm:text-sm font-medium text-foreground transition-all hover:bg-accent active:scale-[0.97] disabled:opacity-60 disabled:pointer-events-none backdrop-blur-sm"
-        >
-          <RefreshCw className={cn('h-3.5 w-3.5', isFetching && 'animate-spin')} />
-          <span className="hidden sm:inline">{isFetching ? 'Refreshing…' : 'Refresh'}</span>
-        </button>
-      </div>
-
       {/* Global error */}
       {error && (
         <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 flex items-center gap-3 text-destructive">
@@ -363,30 +345,28 @@ export default function ReturnOtpsPage() {
       {/* Account OTP cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
         <AnimatePresence mode="popLayout">
-          {isLoading ? (
-            Array.from({ length: Math.min(activeAccountIds.length, 3) }).map((_, i) => (
-              <motion.div
-                key={`skeleton-${i}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                <LoadingSkeleton />
-              </motion.div>
-            ))
-          ) : (
-            accountsData?.map((account, i) => (
-              <motion.div
-                key={account.accountId}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.25, delay: i * 0.05 }}
-              >
-                <AccountCard account={account} />
-              </motion.div>
-            ))
-          )}
+          {isLoading
+            ? Array.from({ length: Math.min(activeAccountIds.length, 3) }).map((_, i) => (
+                <motion.div
+                  key={`skeleton-${i}`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <LoadingSkeleton />
+                </motion.div>
+              ))
+            : accountsData?.map((account, i) => (
+                <motion.div
+                  key={account.accountId}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.25, delay: i * 0.05 }}
+                >
+                  <AccountCard account={account} />
+                </motion.div>
+              ))}
         </AnimatePresence>
       </div>
 

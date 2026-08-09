@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useIsDesktop } from '@/hooks/use-media-query';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { useMarketplaceStore } from '@/store/marketplace.store';
-import { WifiOff, Loader2, Check } from 'lucide-react';
+import { WifiOff, Loader2, Check, RefreshCw } from 'lucide-react';
 import { useAccounts } from '@/hooks/use-accounts';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,6 +45,20 @@ export function TopBar() {
   const activeAccountIds = useMarketplaceStore((s) => s.activeAccountIds);
   const toggleActiveAccount = useMarketplaceStore((s) => s.toggleActiveAccount);
 
+  const queryClient = useQueryClient();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await queryClient.invalidateQueries();
+    } catch (err) {
+      console.error('Refresh failed:', err);
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 600);
+    }
+  };
+
   const selectedAccounts =
     accounts?.filter((a) => activeAccountIds.includes(a.id.toString())) || [];
 
@@ -78,6 +94,16 @@ export function TopBar() {
           <span>Offline</span>
         </div>
       )}
+
+      {/* Global Refresh Button */}
+      <button
+        onClick={handleRefresh}
+        disabled={isRefreshing}
+        className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-all flex items-center justify-center shrink-0 border border-border/20 shadow-sm disabled:opacity-50"
+        title="Refresh Data"
+      >
+        <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+      </button>
 
       {/* Account Selector Dropdown */}
       {accountsLoading ? (
