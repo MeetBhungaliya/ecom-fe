@@ -99,7 +99,6 @@ function DateRangePickerField({
         </PopoverTrigger>
         <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
           <Calendar
-            initialFocus
             mode="range"
             defaultMonth={dateRange?.from || minDate}
             selected={dateRange}
