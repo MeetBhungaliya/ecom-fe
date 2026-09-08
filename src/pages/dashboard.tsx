@@ -6,9 +6,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   useDashboardStats,
   useDashboardActivities,
-  useMarkActivityRead,
-  useDeleteActivity,
   useClearActivities,
+  isZeroOrdersActivity,
   type DashboardActivity,
 } from '@/hooks/use-dashboard';
 import {
@@ -17,12 +16,10 @@ import {
   TrendingUp,
   ArrowUpRight,
   ArrowDownRight,
-  Store,
   Activity,
   Clock,
   AlertCircle,
   CheckCircle2,
-  Check,
   Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
@@ -56,30 +53,6 @@ const INITIAL_STATS = [
     color: 'text-success',
     bgColor: 'bg-success/10',
   },
-  {
-    label: 'Products Listed',
-    value: '1,847',
-    change: 0.058,
-    trend: 'up' as const,
-    icon: Package,
-    color: 'text-chart-5',
-    bgColor: 'bg-chart-5/10',
-  },
-  {
-    label: 'Connected Accounts',
-    value: '4',
-    change: 0,
-    trend: 'neutral' as const,
-    icon: Store,
-    color: 'text-warning',
-    bgColor: 'bg-warning/10',
-  },
-];
-
-const ALERTS = [
-  { id: '1', title: '3 orders pending dispatch', severity: 'warning' as const },
-  { id: '2', title: '7 products out of stock', severity: 'danger' as const },
-  { id: '3', title: 'Meesho account sync overdue', severity: 'warning' as const },
 ];
 
 // --- Components ---
@@ -216,12 +189,8 @@ function StatCard({
 
 function ActivityItem({
   activity,
-  onMarkAsRead,
-  onDelete,
 }: {
   activity: DashboardActivity;
-  onMarkAsRead: (id: string) => void;
-  onDelete: (id: string) => void;
 }) {
   const iconMap = {
     order: ShoppingCart,
@@ -253,28 +222,8 @@ function ActivityItem({
         </div>
       </div>
 
-      <div className="flex items-center gap-3 shrink-0">
+      <div className="flex items-center shrink-0">
         <span className="text-[11px] text-muted-foreground">{timeAgo(activity.time)}</span>
-        <div className="flex items-center gap-1">
-          {!activity.read && (
-            <button
-              onClick={() => onMarkAsRead(activity.id)}
-              title="Mark as read"
-              className="rounded-md p-1 text-muted-foreground opacity-70 hover:opacity-100 hover:bg-accent hover:text-foreground transition-all flex items-center gap-1 text-xs"
-            >
-              <Check className="h-3.5 w-3.5 text-emerald-500" />
-              <span className="hidden group-hover:inline text-[11px]">Mark read</span>
-            </button>
-          )}
-          <button
-            onClick={() => onDelete(activity.id)}
-            title="Remove"
-            className="rounded-md p-1 text-muted-foreground opacity-70 hover:opacity-100 hover:bg-accent hover:text-destructive transition-all flex items-center gap-1 text-xs"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            <span className="hidden group-hover:inline text-[11px]">Remove</span>
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -290,8 +239,6 @@ export default function DashboardPage() {
   const { data: statsData, isLoading: statsLoading } = useDashboardStats(activeAccountIds);
 
   const { data: dbActivities, isLoading: activitiesLoading } = useDashboardActivities();
-  const markReadMutation = useMarkActivityRead();
-  const deleteMutation = useDeleteActivity();
   const clearMutation = useClearActivities();
 
   const [activities, setActivities] = useState<DashboardActivity[]>([]);
@@ -301,7 +248,7 @@ export default function DashboardPage() {
   // Sync DB activities with state
   useEffect(() => {
     if (dbActivities) {
-      setActivities(dbActivities);
+      setActivities(dbActivities.filter((a) => !isZeroOrdersActivity(a)));
     }
   }, [dbActivities]);
 
@@ -322,18 +269,6 @@ export default function DashboardPage() {
     const interval = setInterval(cleanup, 60000); // check every minute
     return () => clearInterval(interval);
   }, []);
-
-  const handleMarkAsRead = (id: string) => {
-    // Optimistic read status update
-    setActivities((prev) => prev.map((act) => (act.id === id ? { ...act, read: true } : act)));
-    markReadMutation.mutate(id);
-  };
-
-  const handleDelete = (id: string) => {
-    // Optimistic delete from UI
-    setActivities((prev) => prev.filter((act) => act.id !== id));
-    deleteMutation.mutate(id);
-  };
 
   const handleClearAll = () => {
     setActivities([]);
@@ -390,6 +325,8 @@ export default function DashboardPage() {
 
         subscription.onMessage((data: any) => {
           if (data?.type === 'activity' && data.activity) {
+            if (isZeroOrdersActivity(data.activity)) return;
+
             setActivities((prev) => {
               // Avoid duplicates if same ID comes in
               const filtered = prev.filter((item) => item.id !== data.activity.id);
@@ -414,6 +351,8 @@ export default function DashboardPage() {
     };
   }, [user?.id]);
 
+  const visibleActivities = activities.filter((activity) => !isZeroOrdersActivity(activity));
+
   return (
     <div className="space-y-6">
       {/* Page header */}
@@ -436,29 +375,32 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         {/* Recent Activity */}
         <div className="lg:col-span-3">
-          <div className="rounded-xl border border-border bg-card">
-            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <div className="flex flex-col rounded-xl border border-border bg-card overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4 shrink-0">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
                 <h2 className="text-base font-semibold text-foreground">Recent Activity</h2>
                 <span className="text-xs font-normal text-muted-foreground">(Last 24 hours)</span>
-                {activities.length > 0 && (
+                {visibleActivities.length > 0 && (
                   <span className="relative flex h-2 w-2 ml-1">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
                   </span>
                 )}
               </div>
-              {activities.length > 0 && (
+              {visibleActivities.length > 0 && (
                 <button
                   onClick={handleClearAll}
-                  className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  disabled={clearMutation.isPending}
+                  title="Delete all activities permanently"
+                  aria-label="Delete all activities permanently"
+                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors disabled:opacity-50"
                 >
-                  Clear all
+                  <Trash2 className="h-4 w-4" />
                 </button>
               )}
             </div>
-            <div className="divide-y divide-border/50 px-2 py-1">
+            <div className="divide-y divide-border/50 px-2 py-1 max-h-[380px] overflow-y-auto">
               {activitiesLoading ? (
                 // Skeletons
                 Array.from({ length: 3 }).map((_, i) => (
@@ -471,13 +413,11 @@ export default function DashboardPage() {
                     <div className="shrink-0 h-3 bg-muted rounded w-12" />
                   </div>
                 ))
-              ) : activities.length > 0 ? (
-                activities.map((activity) => (
+              ) : visibleActivities.length > 0 ? (
+                visibleActivities.map((activity) => (
                   <ActivityItem
                     key={activity.id}
                     activity={activity}
-                    onMarkAsRead={handleMarkAsRead}
-                    onDelete={handleDelete}
                   />
                 ))
               ) : (
@@ -486,54 +426,6 @@ export default function DashboardPage() {
                   will appear here in real-time.
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-
-        {/* Alerts & Quick Actions */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Alerts */}
-          <div className="rounded-xl border border-border bg-card">
-            <div className="flex items-center gap-2 border-b border-border px-5 py-4">
-              <AlertCircle className="h-4 w-4 text-warning" />
-              <h2 className="text-base font-semibold text-foreground">Alerts</h2>
-              <span className="ml-auto rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-semibold text-warning">
-                {ALERTS.length}
-              </span>
-            </div>
-            <div className="space-y-1 px-3 py-2">
-              {ALERTS.map((alert) => (
-                <div
-                  key={alert.id}
-                  className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm',
-                    alert.severity === 'danger'
-                      ? 'bg-destructive/5 text-destructive'
-                      : 'bg-warning/5 text-warning',
-                  )}
-                >
-                  <div
-                    className={cn(
-                      'h-1.5 w-1.5 shrink-0 rounded-full',
-                      alert.severity === 'danger' ? 'bg-destructive' : 'bg-warning',
-                    )}
-                  />
-                  <span className="font-medium">{alert.title}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="rounded-xl border border-border bg-card">
-            <div className="border-b border-border px-5 py-4">
-              <h2 className="text-base font-semibold text-foreground">Quick Actions</h2>
-            </div>
-            <div className="p-3">
-              <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-border/50 bg-muted/30 p-4 text-sm font-medium text-foreground transition-all hover:border-primary/30 hover:bg-primary/5 hover:text-primary active:scale-[0.98] cursor-pointer">
-                <Store className="h-5 w-5" />
-                <span className="text-xs">Connect Account</span>
-              </button>
             </div>
           </div>
         </div>

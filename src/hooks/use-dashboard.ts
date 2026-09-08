@@ -32,11 +32,24 @@ export function useDashboardStats(accountIds?: string[]) {
   });
 }
 
+export function isZeroOrdersActivity(activity: { action?: string; detail?: string }): boolean {
+  const detail = (activity?.detail || '').toLowerCase();
+  const action = (activity?.action || '').toLowerCase();
+  return (
+    /^\s*0\s+orders?\b/i.test(detail) ||
+    /\b0\s+orders?\s+auto-accepted/i.test(detail) ||
+    /\b0\s+orders?\s+accepted/i.test(detail) ||
+    /^\s*0\s+orders?\b/i.test(action) ||
+    /\b0\s+orders?\s+auto-accepted/i.test(action) ||
+    /\b0\s+orders?\s+accepted/i.test(action)
+  );
+}
+
 export function useDashboardActivities() {
   return useQuery({
     queryKey: dashboardKeys.activities(),
     queryFn: () => api.get<{ data: DashboardActivity[] }>('/accounts/dashboard/activities'),
-    select: (res) => res.data,
+    select: (res) => (res.data || []).filter((item) => !isZeroOrdersActivity(item)),
   });
 }
 

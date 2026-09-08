@@ -189,7 +189,7 @@ export default function AdvertisementDashboard() {
     logs,
     subscribeToJob,
     resetJobState,
-  } = useTransmitJob();
+  } = useTransmitJob('ad-launch');
 
   // Offer State
   const [flixOffer, setFlixOffer] = useState<FlixOfferConfig>({
@@ -204,6 +204,7 @@ export default function AdvertisementDashboard() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
+  const catalogInputRef = useRef<HTMLInputElement>(null);
 
   // Auto scroll logs
   useEffect(() => {
@@ -408,12 +409,9 @@ export default function AdvertisementDashboard() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
           </div>
-          <div>
-            <p className="text-sm font-semibold">
-              Configured for {currentAccount.supplierData?.name}
-            </p>
-            <p className="text-xs text-muted-foreground">{savedConfig.apiUrl}</p>
-          </div>
+          <p className="text-sm font-semibold">
+            Configured for {currentAccount.supplierData?.name}
+          </p>
         </div>
         <Button
           variant="secondary"
@@ -444,8 +442,9 @@ export default function AdvertisementDashboard() {
               <Label className="text-sm font-semibold">Catalog IDs</Label>
               <div className="flex flex-col gap-3">
                 <div
+                  onClick={() => catalogInputRef.current?.focus()}
                   className={cn(
-                    'flex min-h-[120px] items-start content-start flex-wrap gap-2 rounded-xl border bg-card border-input px-3 py-3 transition-colors',
+                    'flex min-h-[120px] items-start content-start flex-wrap gap-2 rounded-xl border bg-card border-input px-3 py-3 transition-colors cursor-text',
                     errors.catalogIds ? 'border-destructive' : 'border-input',
                   )}
                 >
@@ -458,7 +457,10 @@ export default function AdvertisementDashboard() {
                       {id}
                       <button
                         type="button"
-                        onClick={() => removeCatalogId(id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeCatalogId(id);
+                        }}
                         className="rounded-full hover:bg-muted-foreground/20 p-0.5"
                       >
                         <X className="h-3 w-3" />
@@ -466,6 +468,7 @@ export default function AdvertisementDashboard() {
                     </Badge>
                   ))}
                   <input
+                    ref={catalogInputRef}
                     type="text"
                     value={catalogInput}
                     onChange={(e) => setCatalogInput(e.target.value)}
@@ -506,7 +509,7 @@ export default function AdvertisementDashboard() {
 
             {/* Dynamic Fields (if any) */}
             {savedConfig.dynamicFields.length > 0 && (
-              <div className="space-y-4 pt-4 border-t border-border/50 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {savedConfig.dynamicFields.map((field) => (
                   <div key={field} className="flex flex-col gap-y-2">
                     <Label htmlFor={field} className="pb-1 truncate capitalize">
@@ -536,7 +539,7 @@ export default function AdvertisementDashboard() {
             )}
 
             {/* Launch Action */}
-            <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-xl border-t border-border z-10 sm:static sm:bg-transparent sm:border-0 sm:p-0 sm:pt-6">
+            <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t border-border z-10 sm:static sm:bg-transparent sm:border-0 sm:p-0 sm:pt-6">
               <div className="max-w-4xl mx-auto">
                 <ActionButton
                   onClick={handleLaunch}
@@ -604,11 +607,12 @@ export default function AdvertisementDashboard() {
             <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
               <motion.div
                 className={cn(
-                  'h-full rounded-full transition-all duration-300',
+                  'h-full rounded-full',
                   status === 'completed' ? 'bg-emerald-500' : 'bg-primary',
                 )}
-                initial={{ width: 0 }}
+                initial={false}
                 animate={{ width: `${progressPercent}%` }}
+                transition={{ type: 'spring', stiffness: 80, damping: 20 }}
               />
             </div>
 

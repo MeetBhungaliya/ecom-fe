@@ -91,7 +91,7 @@ export default function AccountsListPage() {
   };
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="space-y-6">
       {/* Header Section */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>

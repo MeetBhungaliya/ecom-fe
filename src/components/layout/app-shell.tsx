@@ -4,7 +4,6 @@ import { Sidebar } from './sidebar';
 import { BottomNav } from './bottom-nav';
 import { TopBar } from './top-bar';
 import { useAuthStore } from '@/store/auth.store';
-import { PullToRefresh } from '../ui/pull-to-refresh';
 import { useEffect, useState, useRef } from 'react';
 
 export function AppShell() {
@@ -64,16 +63,10 @@ export function AppShell() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <TopBar />
 
-        <main
-          ref={mainRef}
-          className="flex-1 overflow-y-auto overflow-x-hidden"
-          style={!isDesktop ? { paddingBottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' } : undefined}
-        >
-          <PullToRefresh scrollRef={mainRef}>
-            <div className="mx-auto w-full max-w-7xl px-4 py-4 md:px-6 lg:px-8 lg:py-6">
-              <Outlet />
-            </div>
-          </PullToRefresh>
+        <main ref={mainRef} className="flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain">
+          <div className="mx-auto w-full max-w-7xl px-4 py-4 md:px-6 lg:px-8 lg:py-6 pb-20 md:pb-6">
+            <Outlet />
+          </div>
         </main>
       </div>
 
