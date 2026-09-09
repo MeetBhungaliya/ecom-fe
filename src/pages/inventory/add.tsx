@@ -98,13 +98,17 @@ export default function AddProductPage() {
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        {!isDesktop && <h1 className="text-xl font-bold tracking-tight text-foreground">New Product</h1>}
+        {!isDesktop && (
+          <h1 className="text-xl font-bold tracking-tight text-foreground">New Product</h1>
+        )}
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 bg-card border border-border rounded-xl p-5 shadow-sm">
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="space-y-4 bg-card border border-border rounded-xl p-5 shadow-sm"
+      >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          
           {/* Name */}
           <div className="sm:col-span-2">
             <Input
@@ -200,7 +204,6 @@ export default function AddProductPage() {
               {...register('note')}
             />
           </div>
-
         </div>
 
         {/* Actions */}

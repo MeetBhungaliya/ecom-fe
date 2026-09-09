@@ -76,14 +76,16 @@ export type InventoryAnalytics = {
 /**
  * Payload to create a product.
  */
-export type CreateProductPayload = FormData | {
-  name: string;
-  price: number;
-  currentStock?: number;
-  minimumStock?: number;
-  note?: string;
-  image?: File;
-};
+export type CreateProductPayload =
+  | FormData
+  | {
+      name: string;
+      price: number;
+      currentStock?: number;
+      minimumStock?: number;
+      note?: string;
+      image?: File;
+    };
 
 /**
  * Payload to update a product.

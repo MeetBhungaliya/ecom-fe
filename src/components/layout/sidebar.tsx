@@ -1,17 +1,30 @@
-import { NavLink } from 'react-router';
+import { useState } from 'react';
+import { NavLink, useLocation } from 'react-router';
 import { cn } from '@/lib/cn';
 import { useUIStore } from '@/store/ui.store';
 import { useKeyboardShortcut } from '@/hooks/use-keyboard-shortcut';
 import { ROUTES } from '@/constants/routes';
-import { LayoutDashboard, Store, ChevronLeft, ChevronRight, LogOut, KeyRound, Download, Package, Megaphone } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Store,
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+  KeyRound,
+  Download,
+  Package,
+  Megaphone,
+  ChevronDown,
+} from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { getInitials } from '@/lib/formatters';
 
 type NavItem = {
   label: string;
-  href: string;
+  href?: string;
   icon: React.ComponentType<{ className?: string }>;
   section?: string;
+  subItems?: { label: string; href: string }[];
 };
 
 const NAV_ITEMS: NavItem[] = [
@@ -20,9 +33,88 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Return OTPs', href: ROUTES.RETURN_OTPS, icon: KeyRound },
   { label: 'Inventory', href: ROUTES.INVENTORY, icon: Package },
   { label: 'Flexi Offers', href: ROUTES.FLEXI_GROWTH_OFFER, icon: Store },
-  { label: 'Ads Manager', href: ROUTES.ADVERTISEMENT, icon: Megaphone },
+  {
+    label: 'Ads',
+    icon: Megaphone,
+    subItems: [
+      { label: 'Start', href: ROUTES.ADVERTISEMENT },
+      { label: 'Manage', href: ROUTES.ADS_MANAGEMENT },
+    ],
+  },
   { label: 'Download App', href: ROUTES.DOWNLOAD_APP, icon: Download },
 ];
+
+function NavItemRenderer({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
+  const location = useLocation();
+  const isActiveGroup = item.subItems?.some((sub) => location.pathname.startsWith(sub.href));
+  const [isOpen, setIsOpen] = useState(isActiveGroup);
+
+  if (item.subItems) {
+    return (
+      <li className="space-y-1">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className={cn(
+            'flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+            collapsed && 'justify-center px-0',
+            isActiveGroup && !isOpen
+              ? 'bg-sidebar-accent text-sidebar-primary'
+              : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground',
+          )}
+        >
+          <div className="flex items-center gap-3">
+            <item.icon className={cn('h-4.5 w-4.5 shrink-0', collapsed && 'h-5 w-5')} />
+            {!collapsed && <span>{item.label}</span>}
+          </div>
+          {!collapsed && (
+            <ChevronDown className={cn('h-4 w-4 transition-transform', !isOpen && '-rotate-90')} />
+          )}
+        </button>
+        {!collapsed && isOpen && (
+          <ul className="mt-1 space-y-0.5 px-3 pb-1 pl-9">
+            {item.subItems.map((subItem) => (
+              <li key={subItem.href}>
+                <NavLink
+                  to={subItem.href}
+                  className={({ isActive }) =>
+                    cn(
+                      'block rounded-md px-2 py-1.5 text-sm transition-colors',
+                      isActive
+                        ? 'bg-sidebar-accent text-sidebar-primary font-medium'
+                        : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground',
+                    )
+                  }
+                >
+                  {subItem.label}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        )}
+      </li>
+    );
+  }
+
+  return (
+    <li>
+      <NavLink
+        to={item.href!}
+        className={({ isActive }) =>
+          cn(
+            'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+            collapsed && 'justify-center px-0',
+            isActive
+              ? 'bg-sidebar-accent text-sidebar-primary'
+              : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground',
+          )
+        }
+      >
+        <item.icon className={cn('h-4.5 w-4.5 shrink-0', collapsed && 'h-5 w-5')} />
+        {!collapsed && <span>{item.label}</span>}
+      </NavLink>
+    </li>
+  );
+}
 
 export function Sidebar() {
   const collapsed = useUIStore((s) => s.sidebarCollapsed);
@@ -62,24 +154,8 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-2 py-3">
         <ul className="space-y-0.5">
-          {NAV_ITEMS.map((item) => (
-            <li key={item.href}>
-              <NavLink
-                to={item.href}
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                    collapsed && 'justify-center px-0',
-                    isActive
-                      ? 'bg-sidebar-accent text-sidebar-primary'
-                      : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground',
-                  )
-                }
-              >
-                <item.icon className={cn('h-4.5 w-4.5 shrink-0', collapsed && 'h-5 w-5')} />
-                {!collapsed && <span>{item.label}</span>}
-              </NavLink>
-            </li>
+          {NAV_ITEMS.map((item, index) => (
+            <NavItemRenderer key={item.href || `item-${index}`} item={item} collapsed={collapsed} />
           ))}
         </ul>
       </nav>

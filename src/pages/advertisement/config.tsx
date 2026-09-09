@@ -107,9 +107,7 @@ export default function AdConfigPage() {
     if (savedConfig) {
       setApiUrl(savedConfig.apiUrl);
       setPayloadText(JSON.stringify(savedConfig.payload, null, 2));
-      setDynamicFields(
-        (savedConfig.dynamicFields || []).filter((key) => !isFilteredKey(key)),
-      );
+      setDynamicFields((savedConfig.dynamicFields || []).filter((key) => !isFilteredKey(key)));
     }
   }, [savedConfig]);
 

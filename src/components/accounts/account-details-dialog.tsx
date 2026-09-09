@@ -1,18 +1,17 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useIsDesktop } from '@/hooks/use-media-query';
 import type { MarketplaceAccount } from '@/types';
-import { Hash, Mail, Pencil, Phone, RefreshCw, ShieldAlert, ShieldCheck, Trash2 } from 'lucide-react';
+import {
+  Hash,
+  Mail,
+  Pencil,
+  Phone,
+  RefreshCw,
+  ShieldAlert,
+  ShieldCheck,
+  Trash2,
+} from 'lucide-react';
 
 interface AccountDetailsDialogProps {
   open: boolean;
@@ -59,8 +58,8 @@ export function AccountDetailsDialog({
                 isActive
                   ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
                   : isPending
-                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
-                  : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                    : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
               }`}
             >
               {isPending ? (
@@ -171,7 +170,10 @@ export function AccountDetailsDialog({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-3xl px-6 pt-6 pb-8 max-h-[90vh] overflow-y-auto">
+      <SheetContent
+        side="bottom"
+        className="rounded-t-3xl px-6 pt-6 pb-8 max-h-[90vh] overflow-y-auto"
+      >
         <SheetHeader className="text-left mb-2">
           <SheetTitle>Marketplace Account Details</SheetTitle>
         </SheetHeader>

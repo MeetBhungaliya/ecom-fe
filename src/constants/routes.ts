@@ -25,6 +25,7 @@ export const ROUTES = {
   // Tools
   ADVERTISEMENT: '/advertisement',
   ADVERTISEMENT_CONFIG: '/advertisement/config',
+  ADS_MANAGEMENT: '/ads-management',
   FLEXI_GROWTH_OFFER: '/flexi-growth-offer',
   RETURN_OTPS: '/return-otps',
   DOWNLOAD_APP: '/download-app',

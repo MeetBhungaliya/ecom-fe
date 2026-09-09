@@ -20,8 +20,9 @@ function Input({ className, type, label, error, ...props }: InputProps) {
       onWheel={handleWheel}
       className={cn(
         'h-11 w-full min-w-0 rounded-md border border-input bg-card px-4 py-3 text-base tracking-wide transition-all outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive md:text-sm shadow-sm hover:border-input/80',
-        type === 'number' && '[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none',
-        className
+        type === 'number' &&
+          '[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none',
+        className,
       )}
       {...props}
     />

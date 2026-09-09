@@ -2,7 +2,19 @@ import { useState } from 'react';
 import { NavLink } from 'react-router';
 import { cn } from '@/lib/cn';
 import { ROUTES } from '@/constants/routes';
-import { LayoutDashboard, Store, KeyRound, MoreHorizontal, Package, Sparkles, Download, X, LogOut, Megaphone } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Store,
+  KeyRound,
+  MoreHorizontal,
+  Package,
+  Sparkles,
+  Download,
+  X,
+  LogOut,
+  Megaphone,
+  BarChart3,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuthStore } from '@/store/auth.store';
 import { getInitials } from '@/lib/formatters';
@@ -24,7 +36,8 @@ const PRIMARY_TABS: NavItem[] = [
 const MORE_ITEMS: NavItem[] = [
   { label: 'Inventory', href: ROUTES.INVENTORY, icon: Package },
   { label: 'Flexi Offers', href: ROUTES.FLEXI_GROWTH_OFFER, icon: Sparkles },
-  { label: 'Ads Manager', href: ROUTES.ADVERTISEMENT, icon: Megaphone },
+  { label: 'Start Ads', href: ROUTES.ADVERTISEMENT, icon: Megaphone },
+  { label: 'Manage Ads', href: ROUTES.ADS_MANAGEMENT, icon: BarChart3 },
   { label: 'Download App', href: ROUTES.DOWNLOAD_APP, icon: Download },
 ];
 
@@ -114,7 +127,9 @@ export function BottomNav() {
               <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-muted" />
 
               <div className="flex items-center justify-between mb-4 pb-2 border-b border-border/50">
-                <span className="text-base font-semibold text-foreground">Menu & Quick Actions</span>
+                <span className="text-base font-semibold text-foreground">
+                  Menu & Quick Actions
+                </span>
                 <button
                   onClick={() => setIsMoreOpen(false)}
                   className="rounded-full p-1.5 text-muted-foreground hover:bg-muted transition-colors"

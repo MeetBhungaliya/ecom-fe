@@ -43,9 +43,8 @@ export function DeleteProductDialog({ product, open, onOpenChange }: DeleteProdu
           </div>
           <DialogTitle className="text-center">Delete Product</DialogTitle>
           <DialogDescription className="text-center">
-            Are you sure you want to delete <strong>{product.name}</strong>?
-            This action cannot be undone. All stock transaction history for this product will also
-            be removed.
+            Are you sure you want to delete <strong>{product.name}</strong>? This action cannot be
+            undone. All stock transaction history for this product will also be removed.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">

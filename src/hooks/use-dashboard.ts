@@ -26,7 +26,7 @@ export function useDashboardStats(accountIds?: string[]) {
     queryFn: () =>
       api.get<{ data: DashboardStats }>(
         '/accounts/dashboard/stats',
-        accountIds ? { accountIds: accountIds.join(',') } : undefined
+        accountIds ? { accountIds: accountIds.join(',') } : undefined,
       ),
     select: (res) => res.data,
   });

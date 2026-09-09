@@ -13,8 +13,7 @@ import { buttonVariants } from '@/components/ui/button';
 // ============================================
 
 export interface ActionButtonProps
-  extends React.ComponentProps<'button'>,
-    VariantProps<typeof buttonVariants> {
+  extends React.ComponentProps<'button'>, VariantProps<typeof buttonVariants> {
   /** Show a loading spinner and disable the button */
   loading?: boolean;
   /** Icon component to render before the label */

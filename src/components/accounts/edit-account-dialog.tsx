@@ -176,7 +176,10 @@ export function EditAccountDialog({ open, onOpenChange, account }: EditAccountDi
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-3xl px-6 pt-6 pb-8 max-h-[90vh] overflow-y-auto">
+      <SheetContent
+        side="bottom"
+        className="rounded-t-3xl px-6 pt-6 pb-8 max-h-[90vh] overflow-y-auto"
+      >
         <SheetHeader className="text-left mb-2">
           <SheetTitle>Edit Marketplace Account</SheetTitle>
           <SheetDescription>

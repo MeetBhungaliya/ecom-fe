@@ -14,7 +14,7 @@ import {
   ShieldCheck,
   Store,
   Trash2,
-  Zap
+  Zap,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';

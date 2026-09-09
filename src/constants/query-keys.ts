@@ -92,4 +92,10 @@ export const queryKeys = {
     lists: () => [...queryKeys.notifications.all, 'list'] as const,
     unreadCount: () => [...queryKeys.notifications.all, 'unread-count'] as const,
   },
+
+  // Ads Campaigns
+  adsCampaigns: {
+    all: ['ads-campaigns'] as const,
+    list: (accountId?: number) => [...queryKeys.adsCampaigns.all, 'list', accountId] as const,
+  },
 } as const;

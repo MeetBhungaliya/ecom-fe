@@ -27,7 +27,7 @@ export function useProducts(params: ProductListParams = {}) {
     queryFn: () =>
       api.get<PaginatedResponse<Product> & { message: string }>(
         '/inventory/products',
-        params as Record<string, unknown>
+        params as Record<string, unknown>,
       ),
     select: (res) => ({
       products: res.data,
@@ -42,8 +42,7 @@ export function useProducts(params: ProductListParams = {}) {
 export function useProduct(id: string) {
   return useQuery({
     queryKey: queryKeys.inventory.detail(id),
-    queryFn: () =>
-      api.get<{ data: ProductWithTransactions }>(`/inventory/products/${id}`),
+    queryFn: () => api.get<{ data: ProductWithTransactions }>(`/inventory/products/${id}`),
     select: (res) => res.data,
     enabled: !!id,
   });
@@ -55,8 +54,7 @@ export function useProduct(id: string) {
 export function useInventoryAnalytics() {
   return useQuery({
     queryKey: queryKeys.inventory.alerts(),
-    queryFn: () =>
-      api.get<{ data: InventoryAnalytics }>('/inventory/products/analytics'),
+    queryFn: () => api.get<{ data: InventoryAnalytics }>('/inventory/products/analytics'),
     select: (res) => res.data,
   });
 }
@@ -67,8 +65,7 @@ export function useInventoryAnalytics() {
 export function useProductCategories() {
   return useQuery({
     queryKey: [...queryKeys.inventory.all, 'categories'] as const,
-    queryFn: () =>
-      api.get<{ data: string[] }>('/inventory/products/categories'),
+    queryFn: () => api.get<{ data: string[] }>('/inventory/products/categories'),
     select: (res) => res.data,
   });
 }
@@ -123,8 +120,7 @@ export function useDeleteProduct() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) =>
-      api.delete<{ message: string }>(`/inventory/products/${id}`),
+    mutationFn: (id: string) => api.delete<{ message: string }>(`/inventory/products/${id}`),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.inventory.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.inventory.alerts() });
@@ -146,7 +142,7 @@ export function useAdjustStock() {
     mutationFn: ({ id, data }: { id: string; data: AdjustStockPayload }) =>
       api.post<{ data: { product: Product }; message: string }>(
         `/inventory/products/${id}/adjust-stock`,
-        data
+        data,
       ),
     onSuccess: (res, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.inventory.lists() });
@@ -161,4 +157,3 @@ export function useAdjustStock() {
     },
   });
 }
-

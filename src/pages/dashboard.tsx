@@ -115,7 +115,6 @@ function AnimatedNumber({ value }: { value: string }) {
   );
 }
 
-
 function StatCard({
   label,
   value,
@@ -187,11 +186,7 @@ function StatCard({
   );
 }
 
-function ActivityItem({
-  activity,
-}: {
-  activity: DashboardActivity;
-}) {
+function ActivityItem({ activity }: { activity: DashboardActivity }) {
   const iconMap = {
     order: ShoppingCart,
     sync: Activity,
@@ -404,7 +399,10 @@ export default function DashboardPage() {
               {activitiesLoading ? (
                 // Skeletons
                 Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="flex items-start gap-3 rounded-lg px-3 py-3 animate-pulse">
+                  <div
+                    key={i}
+                    className="flex items-start gap-3 rounded-lg px-3 py-3 animate-pulse"
+                  >
                     <div className="mt-0.5 rounded-md bg-muted p-4 w-7 h-7 shrink-0" />
                     <div className="flex-1 min-w-0 space-y-2">
                       <div className="h-4 bg-muted rounded w-1/3" />
@@ -415,10 +413,7 @@ export default function DashboardPage() {
                 ))
               ) : visibleActivities.length > 0 ? (
                 visibleActivities.map((activity) => (
-                  <ActivityItem
-                    key={activity.id}
-                    activity={activity}
-                  />
+                  <ActivityItem key={activity.id} activity={activity} />
                 ))
               ) : (
                 <div className="py-8 text-center text-xs text-muted-foreground">

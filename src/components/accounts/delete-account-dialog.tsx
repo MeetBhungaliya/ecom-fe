@@ -50,8 +50,8 @@ export function DeleteAccountDialog({ open, onOpenChange, account }: DeleteAccou
         <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
         <div className="text-sm leading-relaxed">
           This action will permanently disconnect{' '}
-          <span className="font-bold">{account?.supplierData?.name || account?.email}</span> from Ecom Manager.
-          Active order syncs and automated actions for this account will stop.
+          <span className="font-bold">{account?.supplierData?.name || account?.email}</span> from
+          Ecom Manager. Active order syncs and automated actions for this account will stop.
         </div>
       </div>
 
@@ -93,9 +93,7 @@ export function DeleteAccountDialog({ open, onOpenChange, account }: DeleteAccou
             <DialogTitle className="text-destructive flex items-center gap-2">
               <Trash2 className="h-5 w-5" /> Delete Connected Account
             </DialogTitle>
-            <DialogDescription>
-              Are you sure you want to remove this account?
-            </DialogDescription>
+            <DialogDescription>Are you sure you want to remove this account?</DialogDescription>
           </DialogHeader>
           {bodyContent}
         </DialogContent>
@@ -110,9 +108,7 @@ export function DeleteAccountDialog({ open, onOpenChange, account }: DeleteAccou
           <SheetTitle className="text-destructive flex items-center gap-2">
             <Trash2 className="h-5 w-5" /> Delete Connected Account
           </SheetTitle>
-          <SheetDescription>
-            Are you sure you want to remove this account?
-          </SheetDescription>
+          <SheetDescription>Are you sure you want to remove this account?</SheetDescription>
         </SheetHeader>
         {bodyContent}
       </SheetContent>

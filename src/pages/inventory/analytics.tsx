@@ -7,14 +7,7 @@ import { formatCurrency } from '@/lib/formatters';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  ArrowLeft,
-  Package,
-  DollarSign,
-  AlertTriangle,
-  XCircle,
-  ArrowRight,
-} from 'lucide-react';
+import { ArrowLeft, Package, DollarSign, AlertTriangle, XCircle, ArrowRight } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -67,7 +60,7 @@ function AlertProductItem({ product, onNavigate }: { product: Product; onNavigat
       <div
         className={cn(
           'h-2 w-2 shrink-0 rounded-full',
-          product.stockStatus === 'out_of_stock' ? 'bg-red-500' : 'bg-amber-500'
+          product.stockStatus === 'out_of_stock' ? 'bg-red-500' : 'bg-amber-500',
         )}
       />
       <div className="flex-1 min-w-0">
@@ -89,7 +82,8 @@ function ChartTooltipContent({ active, payload, label }: any) {
       <p className="text-xs font-medium text-foreground mb-1">{label}</p>
       {payload.map((entry: any, i: number) => (
         <p key={i} className="text-xs" style={{ color: entry.color }}>
-          {entry.name}: {typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}
+          {entry.name}:{' '}
+          {typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}
         </p>
       ))}
     </div>
@@ -193,7 +187,6 @@ export default function InventoryAnalyticsPage() {
             </div>
           )}
         </div>
-
       </div>
 
       {/* KPI Cards */}
@@ -207,12 +200,13 @@ export default function InventoryAnalyticsPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Category Breakdown */}
         <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="text-base font-semibold text-foreground mb-4">
-            Stock Value by Category
-          </h2>
+          <h2 className="text-base font-semibold text-foreground mb-4">Stock Value by Category</h2>
           {data.categoryBreakdown.length > 0 ? (
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={data.categoryBreakdown} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
+              <BarChart
+                data={data.categoryBreakdown}
+                margin={{ top: 5, right: 5, bottom: 5, left: 5 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
                 <XAxis
                   dataKey="name"
@@ -250,7 +244,10 @@ export default function InventoryAnalyticsPage() {
           </h2>
           {data.stockMovements.length > 0 ? (
             <ResponsiveContainer width="100%" height={280}>
-              <AreaChart data={data.stockMovements} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
+              <AreaChart
+                data={data.stockMovements}
+                margin={{ top: 5, right: 5, bottom: 5, left: 5 }}
+              >
                 <defs>
                   <linearGradient id="addGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />

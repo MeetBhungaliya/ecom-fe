@@ -8,18 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProductCard } from './components/product-card';
 import { DeleteProductDialog } from './components/delete-product-dialog';
-import {
-  Plus,
-  Package,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react';
+import { Plus, Package, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Product, ProductListParams } from '@/types';
 
 export default function InventoryListPage() {
   const navigate = useNavigate();
   const isDesktop = useIsDesktop();
-
 
   // Subscribe to real-time inventory updates via SSE
   useInventoryTransmit();
@@ -54,7 +48,11 @@ export default function InventoryListPage() {
         )}
         {isDesktop && <div />}
         <div className="flex items-center gap-2">
-          <Button size="sm" onClick={() => navigate(ROUTES.INVENTORY_ADD)} className="h-8 text-xs px-3">
+          <Button
+            size="sm"
+            onClick={() => navigate(ROUTES.INVENTORY_ADD)}
+            className="h-8 text-xs px-3"
+          >
             <Plus className="mr-1 h-3.5 w-3.5" />
             Add Product
           </Button>
@@ -99,11 +97,7 @@ export default function InventoryListPage() {
               </div>
             ) : (
               products.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onDelete={setDeleteProduct}
-                />
+                <ProductCard key={product.id} product={product} onDelete={setDeleteProduct} />
               ))
             )}
           </div>

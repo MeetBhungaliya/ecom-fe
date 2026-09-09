@@ -43,11 +43,8 @@ function buildAndroid() {
   run('./gradlew assembleDebug', androidPath);
 
   copyIfExists(
-    path.join(
-      androidPath,
-      'app/build/outputs/apk/debug/app-debug.apk'
-    ),
-    path.join(downloadsDir, 'ecom-app.apk')
+    path.join(androidPath, 'app/build/outputs/apk/debug/app-debug.apk'),
+    path.join(downloadsDir, 'ecom-app.apk'),
   );
 }
 
@@ -63,9 +60,7 @@ function getIOSBuildTarget(appDir) {
     return '-project App.xcodeproj';
   }
 
-  throw new Error(
-    'Neither App.xcworkspace nor App.xcodeproj was found.'
-  );
+  throw new Error('Neither App.xcworkspace nor App.xcodeproj was found.');
 }
 
 function zipApp(appPath, outputZip) {
@@ -101,19 +96,13 @@ ${buildTarget} \
 -archivePath build/App.xcarchive \
 -sdk iphoneos \
 CODE_SIGNING_ALLOWED=NO`,
-      appDir
+      appDir,
     );
 
-    const appBundle = path.join(
-      appDir,
-      'build/App.xcarchive/Products/Applications/App.app'
-    );
+    const appBundle = path.join(appDir, 'build/App.xcarchive/Products/Applications/App.app');
 
     if (fs.existsSync(appBundle)) {
-      zipApp(
-        appBundle,
-        path.join(downloadsDir, 'ecom-app-ios.zip')
-      );
+      zipApp(appBundle, path.join(downloadsDir, 'ecom-app-ios.zip'));
 
       console.log('✔ iOS archive created');
       return;
@@ -134,22 +123,16 @@ ${buildTarget} \
 -derivedDataPath build \
 CODE_SIGNING_ALLOWED=NO \
 build`,
-      appDir
+      appDir,
     );
 
-    const simulatorApp = path.join(
-      appDir,
-      'build/Build/Products/Debug-iphonesimulator/App.app'
-    );
+    const simulatorApp = path.join(appDir, 'build/Build/Products/Debug-iphonesimulator/App.app');
 
     if (!fs.existsSync(simulatorApp)) {
       throw new Error('Simulator build succeeded but App.app was not found.');
     }
 
-    zipApp(
-      simulatorApp,
-      path.join(downloadsDir, 'ecom-app-ios-simulator.zip')
-    );
+    zipApp(simulatorApp, path.join(downloadsDir, 'ecom-app-ios-simulator.zip'));
 
     console.log('✔ Simulator build created');
   }
@@ -177,13 +160,9 @@ function main() {
 
   console.log('\n========== Finished ==========');
 
-  const files = [
-    'ecom-app.apk',
-    'ecom-app-ios.zip',
-    'ecom-app-ios-simulator.zip',
-  ];
+  const files = ['ecom-app.apk', 'ecom-app-ios.zip', 'ecom-app-ios-simulator.zip'];
 
-  files.forEach(file => {
+  files.forEach((file) => {
     const full = path.join(downloadsDir, file);
     if (fs.existsSync(full)) {
       console.log(`✔ public/downloads/${file}`);

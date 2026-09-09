@@ -335,10 +335,7 @@ export function useTransmitJob(jobType?: string) {
         successCount: data.successCount ?? prev.successCount,
         failedCount: data.failedCount ?? prev.failedCount,
         failedItems: data.failedItems || prev.failedItems,
-        logs: [
-          ...prev.logs,
-          { type: 'info', message: 'Job completed.', timestamp: Date.now() },
-        ],
+        logs: [...prev.logs, { type: 'info', message: 'Job completed.', timestamp: Date.now() }],
       }));
       callbacksRef.current.onCompleted?.();
     } else if (data.type === 'error') {

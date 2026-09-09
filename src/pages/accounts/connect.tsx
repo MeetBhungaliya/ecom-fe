@@ -74,12 +74,7 @@ export default function AccountConnectPage() {
           <label className="text-sm font-medium" htmlFor="email">
             Email
           </label>
-          <Input
-            id="email"
-            type="email"
-            {...register('email')}
-            placeholder="seller@example.com"
-          />
+          <Input id="email" type="email" {...register('email')} placeholder="seller@example.com" />
           {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
         </div>
 
@@ -96,11 +91,7 @@ export default function AccountConnectPage() {
           {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
         </div>
 
-        <Button
-          type="submit"
-          disabled={isPending}
-          className="mt-4 w-full"
-        >
+        <Button type="submit" disabled={isPending} className="mt-4 w-full">
           {isPending ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />

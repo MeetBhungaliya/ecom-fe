@@ -89,7 +89,8 @@
 /* =====================
    DARK THEME (Default for Linear)
    ===================== */
-:root, .dark {
+:root,
+.dark {
   color-scheme: dark;
 
   /* Background layers (darkest → lightest) */

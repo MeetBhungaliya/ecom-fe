@@ -13,7 +13,7 @@ import { api } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
 import { useMarketplaceStore } from '@/store/marketplace.store';
 import { format } from 'date-fns';
-import { type DateRange } from "react-day-picker"
+import { type DateRange } from 'react-day-picker';
 import {
   Calendar as CalendarIcon,
   CheckCircle2,

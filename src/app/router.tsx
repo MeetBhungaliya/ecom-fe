@@ -21,6 +21,7 @@ const ReturnOtpsPage = lazy(() => import('@/pages/return-otps'));
 const DownloadAppPage = lazy(() => import('@/pages/download-app'));
 const AdvertisementPage = lazy(() => import('@/pages/advertisement'));
 const AdConfigPage = lazy(() => import('@/pages/advertisement/config'));
+const AdsManagementPage = lazy(() => import('@/pages/ads-management'));
 const LoginPage = lazy(() => import('@/pages/auth/login'));
 const NotFoundPage = lazy(() => import('@/pages/not-found'));
 
@@ -183,6 +184,14 @@ export const router = createBrowserRouter([
         element: (
           <SuspenseWrapper>
             <AdConfigPage />
+          </SuspenseWrapper>
+        ),
+      },
+      {
+        path: ROUTES.ADS_MANAGEMENT,
+        element: (
+          <SuspenseWrapper>
+            <AdsManagementPage />
           </SuspenseWrapper>
         ),
       },
