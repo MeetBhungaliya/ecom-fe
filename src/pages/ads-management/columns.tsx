@@ -4,9 +4,11 @@
 // ============================================
 
 import { createColumnHelper } from '@tanstack/react-table';
-import type { EnrichedAdsCampaign } from '@/hooks/use-ads-campaigns';
+import { type EnrichedAdsCampaign, usePauseAdsCampaign } from '@/hooks/use-ads-campaigns';
 import { features } from './table-features';
 import { format, parseISO, isValid } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { Pause, Loader2, Eye } from 'lucide-react';
 
 const col = createColumnHelper<typeof features, EnrichedAdsCampaign>();
 
@@ -64,21 +66,53 @@ const fmtCurrency = (value: number | undefined | null) => {
 export const columns = col.columns([
   col.display({
     id: 'select',
-    header: ({ table }) => (
-      <div className="flex items-center justify-center">
-        <input
-          type="checkbox"
-          checked={table.getIsAllRowsSelected()}
-          ref={(input) => {
-            if (input) {
-              input.indeterminate = table.getIsSomeRowsSelected() && !table.getIsAllRowsSelected();
-            }
-          }}
-          onChange={table.getToggleAllRowsSelectedHandler()}
-          className="h-3.5 w-3.5 rounded-sm border-zinc-300 bg-transparent text-primary focus:ring-primary/20 accent-primary cursor-pointer"
-        />
-      </div>
-    ),
+    header: ({ table }) => {
+      // Custom handler: merges visible-row selection into existing state
+      // instead of replacing the entire rowSelection (which would wipe
+      // selections from accounts currently hidden by the account-pill filter).
+      const filteredRows = table.getFilteredRowModel().rows;
+      const allFilteredSelected =
+        filteredRows.length > 0 && filteredRows.every((r) => r.getIsSelected());
+      const someFilteredSelected = filteredRows.some((r) => r.getIsSelected());
+
+      const handleToggleAll = () => {
+        if (allFilteredSelected) {
+          // Deselect only visible rows; keep other accounts' selections intact
+          table.setRowSelection((prev) => {
+            const next = { ...prev };
+            filteredRows.forEach((r) => {
+              delete next[r.id];
+            });
+            return next;
+          });
+        } else {
+          // Select all visible rows, merging with existing cross-account selections
+          table.setRowSelection((prev) => {
+            const next = { ...prev };
+            filteredRows.forEach((r) => {
+              next[r.id] = true;
+            });
+            return next;
+          });
+        }
+      };
+
+      return (
+        <div className="flex items-center justify-center">
+          <input
+            type="checkbox"
+            checked={allFilteredSelected}
+            ref={(input) => {
+              if (input) {
+                input.indeterminate = someFilteredSelected && !allFilteredSelected;
+              }
+            }}
+            onChange={handleToggleAll}
+            className="h-3.5 w-3.5 rounded-sm border-zinc-300 bg-transparent text-primary focus:ring-primary/20 accent-primary cursor-pointer"
+          />
+        </div>
+      );
+    },
     size: 44,
     enableHiding: false,
     cell: ({ row }) => (
@@ -93,13 +127,15 @@ export const columns = col.columns([
     ),
   }),
 
-  // 1. Campaign Column (Campaign name + Account Badge + Date range)
-  col.accessor('campaign_name', {
+  // 1. Campaign Column (Campaign name + Account Badge + ID + Date range)
+  col.accessor((row) => `${row.campaign_name || ''} ${row.campaign_id || ''}`, {
+    id: 'campaign_name',
     header: 'CAMPAIGN',
     size: 320,
     enableSorting: false,
     cell: ({ row }) => {
       const campaignName = row.original.campaign_name || `Campaign ${row.original.campaign_id}`;
+      const campaignId = row.original.campaign_id;
       const accountName = row.original.account_name;
       const startDateStr = formatCampaignDate(row.original.start_date);
       const endDateStr = formatCampaignDate(row.original.end_date);
@@ -130,9 +166,15 @@ export const columns = col.columns([
               {campaignName}
             </span>
           </div>
-          {dateLine && (
-            <div className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">{dateLine}</div>
-          )}
+          <div className="flex items-center gap-2 text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
+            <span className="text-zinc-600 dark:text-zinc-300 font-medium">{campaignId}</span>
+            {dateLine && (
+              <>
+                <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                <span>{dateLine}</span>
+              </>
+            )}
+          </div>
         </div>
       );
     },
@@ -280,4 +322,76 @@ export const columns = col.columns([
       );
     },
   }),
+
+  // 8. Action Column (Pause + View Campaign)
+  col.display({
+    id: 'actions',
+    header: () => <div className="text-center">ACTION</div>,
+    size: 72,
+    enableSorting: false,
+    enableHiding: false,
+    cell: ({ row, table }) => {
+      const onView = (table.options.meta as any)?.onViewCampaign;
+      return <ActionCell campaign={row.original} onView={onView} />;
+    },
+  }),
 ]);
+
+// ============================================
+// ACTION CELL COMPONENT
+// Eye (view detail) + Pause icon buttons
+// ============================================
+
+function ActionCell({
+  campaign,
+  onView,
+}: {
+  campaign: EnrichedAdsCampaign;
+  onView?: (c: EnrichedAdsCampaign) => void;
+}) {
+  const pauseMutation = usePauseAdsCampaign();
+
+  const handlePause = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    pauseMutation.mutate({
+      accountId: campaign.account_id,
+      campaign_id: campaign.campaign_id,
+      supplier_id: (campaign as any).supplier_id,
+      pause_nudge_status: 'DETAILS_PAGE',
+    });
+  };
+
+  return (
+    <div className="flex items-center justify-center gap-1">
+      {/* View details */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={(e) => {
+          e.stopPropagation();
+          onView?.(campaign);
+        }}
+        className="h-7 w-7 rounded-lg text-zinc-400 hover:text-[#0ea5e9] hover:bg-[#0ea5e9]/10 transition-colors cursor-pointer"
+        title={`View details for campaign #${campaign.campaign_id}`}
+      >
+        <Eye className="h-3.5 w-3.5" />
+      </Button>
+
+      {/* Pause */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handlePause}
+        disabled={pauseMutation.isPending}
+        className="h-7 w-7 rounded-lg text-amber-500 hover:text-amber-600 hover:bg-amber-500/10 transition-colors cursor-pointer disabled:opacity-50"
+        title={`Pause campaign #${campaign.campaign_id}`}
+      >
+        {pauseMutation.isPending ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Pause className="h-3.5 w-3.5 fill-current" />
+        )}
+      </Button>
+    </div>
+  );
+}

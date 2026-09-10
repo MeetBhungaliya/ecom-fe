@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useQuery, useQueries } from '@tanstack/react-query';
+import { useQuery, useQueries, useMutation } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { api, type ApiError } from '@/lib/api-client';
 import { queryClient } from '@/lib/query-client';
 import { queryKeys } from '@/constants/query-keys';
@@ -410,4 +411,196 @@ export function useMultiAccountAdsCampaigns(
     refresh,
     refetch,
   };
+}
+
+// ============================================
+// PAUSE CAMPAIGN HOOK
+// Pauses a campaign on Meesho Ads via backend proxy.
+// Evicts campaign from query cache and IndexedDB.
+// ============================================
+
+export interface PauseCampaignPayload {
+  accountId?: string | number;
+  campaign_id: number;
+  supplier_id?: number;
+  pause_nudge_status?: string;
+}
+
+export function usePauseAdsCampaign() {
+  return useMutation({
+    mutationFn: async (payload: PauseCampaignPayload) => {
+      return api.post<{ success: boolean; message: string; data?: unknown }>(
+        '/accounts/ads/campaigns/pause',
+        {
+          accountId: payload.accountId,
+          campaign_id: payload.campaign_id,
+          supplier_id: payload.supplier_id,
+          pause_nudge_status: payload.pause_nudge_status || 'DETAILS_PAGE',
+        },
+      );
+    },
+    onSuccess: (_, variables) => {
+      const campaignId = variables.campaign_id;
+      const accountId = variables.accountId;
+
+      // 1. Immediately update TanStack Query cache for this account
+      if (accountId) {
+        queryClient.setQueryData<CachedCampaignsData>(
+          [...queryKeys.adsCampaigns.list(Number(accountId)), 'LIVE'],
+          (old) => {
+            if (!old || !old.campaigns) return old;
+            const remaining = old.campaigns.filter((c) => c.campaign_id !== campaignId);
+            return {
+              ...old,
+              campaigns: remaining,
+              totalCount: Math.max(0, (old.totalCount || remaining.length) - 1),
+            };
+          },
+        );
+
+        // 2. Remove campaign from IndexedDB cache
+        getCampaignsFromIdb(accountId, 'LIVE')
+          .then((cached) => {
+            if (cached && cached.campaigns) {
+              const remaining = cached.campaigns.filter((c) => c.campaign_id !== campaignId);
+              saveCampaignsToIdb(
+                accountId,
+                'LIVE',
+                remaining,
+                Math.max(0, (cached.totalCount || remaining.length) - 1),
+              ).catch(() => {});
+            }
+          })
+          .catch(() => {});
+      } else {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.adsCampaigns.all,
+        });
+      }
+
+      toast.success('Campaign paused successfully');
+    },
+    onError: (err: any) => {
+      const msg = err?.message || err?.error || 'Failed to pause campaign';
+      toast.error(msg);
+    },
+  });
+}
+
+// ============================================
+// BULK PAUSE CAMPAIGNS HOOK
+// Enqueues background AdonisJS queue job to pause multiple campaigns.
+// Optimistically evicts paused campaigns across accounts.
+// ============================================
+
+export interface BulkPauseCampaignItem {
+  campaign_id: number;
+  accountId: string | number;
+  supplier_id?: number;
+}
+
+export interface BulkPausePayload {
+  items: BulkPauseCampaignItem[];
+}
+
+export function useBulkPauseAdsCampaigns() {
+  return useMutation({
+    mutationFn: async (payload: BulkPausePayload) => {
+      return api.post<{ message: string; jobId: string; total: number }>(
+        '/accounts/ads/campaigns/bulk-pause',
+        payload,
+      );
+    },
+    onSuccess: (_, variables) => {
+      const items = variables.items;
+
+      // Group by accountId to update caches
+      const byAccount = new Map<string, number[]>();
+      for (const it of items) {
+        const accId = it.accountId.toString();
+        const list = byAccount.get(accId) || [];
+        list.push(it.campaign_id);
+        byAccount.set(accId, list);
+      }
+
+      byAccount.forEach((pausedIds, accId) => {
+        const pausedSet = new Set(pausedIds);
+
+        // 1. Immediately update TanStack Query cache for this account
+        queryClient.setQueryData<CachedCampaignsData>(
+          [...queryKeys.adsCampaigns.list(Number(accId)), 'LIVE'],
+          (old) => {
+            if (!old || !old.campaigns) return old;
+            const remaining = old.campaigns.filter((c) => !pausedSet.has(c.campaign_id));
+            return {
+              ...old,
+              campaigns: remaining,
+              totalCount: Math.max(0, (old.totalCount || remaining.length) - pausedIds.length),
+            };
+          },
+        );
+
+        // 2. Remove paused campaigns from IndexedDB cache
+        getCampaignsFromIdb(accId, 'LIVE')
+          .then((cached) => {
+            if (cached && cached.campaigns) {
+              const remaining = cached.campaigns.filter((c) => !pausedSet.has(c.campaign_id));
+              saveCampaignsToIdb(
+                accId,
+                'LIVE',
+                remaining,
+                Math.max(0, (cached.totalCount || remaining.length) - pausedIds.length),
+              ).catch(() => {});
+            }
+          })
+          .catch(() => {});
+      });
+
+      toast.success(`Queued pause for ${items.length} campaigns`);
+    },
+    onError: (err: any) => {
+      const msg = err?.message || err?.error || 'Failed to queue bulk pause';
+      toast.error(msg);
+    },
+  });
+}
+
+// ============================================
+// CAMPAIGN DETAILS HOOK
+// Fetches per-campaign details (ads + graph) from Meesho
+// via the proxied backend endpoint.
+// ============================================
+
+export interface CampaignDetailsPayload {
+  accountId?: string | number;
+  campaign_id: number | string;
+  supplier_id?: number;
+  page_number?: number;
+  page_size?: number;
+  start_date?: string | null;
+  end_date?: string | null;
+  is_graph_required?: boolean;
+  date_window?: string;
+}
+
+export function useCampaignDetails(payload: CampaignDetailsPayload | null) {
+  return useQuery({
+    queryKey: ['campaign-details', payload?.campaign_id, payload?.accountId],
+    queryFn: () =>
+      api.post<{ success: boolean; data: any }>('/accounts/ads/campaigns/details', {
+        accountId: payload!.accountId,
+        campaign_id: payload!.campaign_id,
+        supplier_id: payload!.supplier_id,
+        page_number: payload!.page_number ?? 1,
+        page_size: payload!.page_size ?? 10,
+        start_date: payload!.start_date ?? null,
+        end_date: payload!.end_date ?? null,
+        is_graph_required: payload!.is_graph_required ?? true,
+        date_window: payload!.date_window ?? 'AUTO',
+      }),
+    enabled: !!payload?.campaign_id,
+    staleTime: 2 * 60 * 1000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
 }

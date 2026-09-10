@@ -19,6 +19,7 @@ export type CampaignPerfDetails = {
  */
 export type AdsCampaign = {
   campaign_id: number;
+  supplier_id?: number;
   campaign_name: string;
   budget: number;
   total_budget: number;

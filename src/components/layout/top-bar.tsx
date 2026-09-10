@@ -14,6 +14,7 @@ import {
 import { cn } from '@/lib/cn';
 
 import { useLocation } from 'react-router';
+import { useAdsSyncStore } from '@/store/ads.store';
 
 function getInitials(name?: string) {
   if (!name) return 'A';
@@ -28,6 +29,7 @@ const getPageTitle = (pathname: string) => {
   if (pathname === '/inventory/analytics') return 'Inventory Analytics';
   if (pathname === '/accounts') return 'Marketplace Accounts';
   if (pathname === '/accounts/connect') return 'Connect Meesho Account';
+  if (pathname === '/ads-management') return 'Ads Management';
   if (pathname === '/flexi-growth-offer') return 'Flexi Growth Offer';
   if (pathname === '/return-otps') return 'Return OTPs';
   if (pathname === '/download-app') return 'Get the Mobile App';
@@ -47,11 +49,17 @@ export function TopBar() {
 
   const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const adsRefreshHandler = useAdsSyncStore((s) => s.refreshHandler);
+  const adsIsFetching = useAdsSyncStore((s) => s.isFetching);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await queryClient.invalidateQueries();
+      if (pathname === '/ads-management' && adsRefreshHandler) {
+        await adsRefreshHandler();
+      } else {
+        await queryClient.invalidateQueries();
+      }
     } catch (err) {
       console.error('Refresh failed:', err);
     } finally {
@@ -98,11 +106,17 @@ export function TopBar() {
       {/* Global Refresh Button */}
       <button
         onClick={handleRefresh}
-        disabled={isRefreshing}
-        className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-all flex items-center justify-center shrink-0 border border-border/20 shadow-sm disabled:opacity-50"
+        disabled={isRefreshing || (pathname === '/ads-management' && adsIsFetching)}
+        className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-all flex items-center justify-center shrink-0 border border-border/20 shadow-sm disabled:opacity-50 cursor-pointer"
         title="Refresh Data"
       >
-        <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+        <RefreshCw
+          className={cn(
+            'h-4 w-4 transition-transform',
+            (isRefreshing || (pathname === '/ads-management' && adsIsFetching)) &&
+              'animate-spin text-[#0ea5e9]',
+          )}
+        />
       </button>
 
       {/* Account Selector Dropdown */}

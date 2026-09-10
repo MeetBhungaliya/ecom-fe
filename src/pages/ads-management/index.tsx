@@ -5,11 +5,30 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAccounts } from '@/hooks/use-accounts';
 import { useMarketplaceStore } from '@/store/marketplace.store';
 import { useMultiAccountAdsCampaigns } from '@/hooks/use-ads-campaigns';
+import type { EnrichedAdsCampaign } from '@/hooks/use-ads-campaigns';
+import { useAdsSyncStore } from '@/store/ads.store';
 import { features } from './table-features';
 import { columns } from './columns';
 import { cn } from '@/lib/cn';
-import { Search, RotateCw, AlertCircle, AlertTriangle, ChevronUp, ChevronDown } from 'lucide-react';
+import {
+  Search,
+  RotateCw,
+  AlertCircle,
+  AlertTriangle,
+  ChevronUp,
+  ChevronDown,
+  RotateCcw,
+  SlidersHorizontal,
+} from 'lucide-react';
 import { motion } from 'motion/react';
+import {
+  MetricRangeFilter,
+  matchesMetricFilters,
+  type ActiveMetricFilters,
+} from './metric-range-filter';
+import { BulkActionBar } from './bulk-action-bar';
+import type { BulkPauseCampaignItem } from '@/hooks/use-ads-campaigns';
+import { CampaignDetailModal } from './campaign-detail-modal';
 
 // ============================================
 // CONSTANTS
@@ -77,11 +96,28 @@ export default function AdsManagementPage() {
     refresh: refreshCampaigns,
   } = useMultiAccountAdsCampaigns(enabledAccountIds, accountsMap);
 
+  // Connect with TopBar global refresh button
+  const setAdsIsFetching = useAdsSyncStore((s) => s.setIsFetching);
+  const setAdsRefreshHandler = useAdsSyncStore((s) => s.setRefreshHandler);
+
+  useEffect(() => {
+    setAdsIsFetching(campaignsFetching);
+  }, [campaignsFetching, setAdsIsFetching]);
+
   // In-table account filter state (user can toggle accounts on/off directly)
   const [tableFilterAccountIds, setTableFilterAccountIds] = useState<string[]>(
     () => enabledAccountIds,
   );
   const [isInitialized, setIsInitialized] = useState(() => enabledAccountIds.length > 0);
+
+  // Register targeted refresh handler with TopBar
+  useEffect(() => {
+    const handler = async () => {
+      refreshCampaigns(tableFilterAccountIds);
+    };
+    setAdsRefreshHandler(handler);
+    return () => setAdsRefreshHandler(undefined);
+  }, [refreshCampaigns, tableFilterAccountIds, setAdsRefreshHandler]);
 
   // Keep in-table filter synchronized whenever header selection changes
   useEffect(() => {
@@ -115,15 +151,22 @@ export default function AdsManagementPage() {
   const [globalFilter, setGlobalFilter] = useState('');
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
+  const [metricFilters, setMetricFilters] = useState<ActiveMetricFilters>({});
+  const [viewCampaign, setViewCampaign] = useState<EnrichedAdsCampaign | null>(null);
 
   // Filter campaigns to match the in-table account filter
-  const data = useMemo(() => {
+  const accountFilteredData = useMemo(() => {
     const activeFilters =
       tableFilterAccountIds.length > 0 ? tableFilterAccountIds : enabledAccountIds;
     return campaigns.filter((c) =>
       c.account_id ? activeFilters.includes(c.account_id.toString()) : false,
     );
   }, [campaigns, tableFilterAccountIds, enabledAccountIds]);
+
+  // Apply metric range filters (Budget, Spent, ROI, Orders, Revenue, Views, Clicks)
+  const data = useMemo(() => {
+    return accountFilteredData.filter((c) => matchesMetricFilters(c, metricFilters));
+  }, [accountFilteredData, metricFilters]);
 
   // Count records per account to show on datatable account pills
   const accountCampaignCounts = useMemo(() => {
@@ -142,6 +185,7 @@ export default function AdsManagementPage() {
     features,
     data,
     columns,
+    getRowId: (row) => `${row.account_id}_${row.campaign_id}`,
     state: {
       sorting,
       globalFilter,
@@ -154,6 +198,9 @@ export default function AdsManagementPage() {
     onGlobalFilterChange: setGlobalFilter,
     onColumnVisibilityChange: (updater: any) => {
       setColumnVisibility((prev) => (typeof updater === 'function' ? updater(prev) : updater));
+    },
+    meta: {
+      onViewCampaign: setViewCampaign,
     },
   });
 
@@ -179,7 +226,31 @@ export default function AdsManagementPage() {
       ? virtualizer.getTotalSize() - (virtualItems[virtualItems.length - 1]?.end ?? 0)
       : 0;
 
-  const selectedCount = Object.keys(rowSelection).length;
+  // Selected campaigns aggregated across ALL accounts, persistent across account filter switches
+  const selectedCampaignItems: BulkPauseCampaignItem[] = useMemo(() => {
+    const selectedKeys = Object.entries(rowSelection)
+      .filter(([_, isSelected]) => Boolean(isSelected))
+      .map(([key]) => key);
+
+    if (selectedKeys.length === 0) return [];
+
+    const keySet = new Set(selectedKeys);
+    const items: BulkPauseCampaignItem[] = [];
+
+    for (const c of campaigns) {
+      const key = `${c.account_id}_${c.campaign_id}`;
+      if (keySet.has(key)) {
+        items.push({
+          campaign_id: c.campaign_id,
+          accountId: c.account_id ?? '',
+          supplier_id: (c as any).supplier_id,
+        });
+      }
+    }
+    return items;
+  }, [rowSelection, campaigns]);
+
+  const selectedCount = selectedCampaignItems.length;
 
   const isLoading = accountsLoading || (campaignsLoading && campaigns.length === 0);
   const hasFatalError = campaigns.length === 0 && failedAccounts.length > 0 && !isLoading;
@@ -194,35 +265,33 @@ export default function AdsManagementPage() {
       >
         {/* Toolbar */}
         <div className="px-6 py-5 space-y-3.5 border-b border-zinc-200/80 dark:border-zinc-800/80">
-          {/* Row 1: Search, Refresh & Account Buttons */}
+          {/* Row 1: Search, Range Filter, Refresh & Account Buttons */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            {/* Search Input */}
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-              <input
-                type="text"
-                value={globalFilter}
-                onChange={(e) => setGlobalFilter(e.target.value)}
-                placeholder="Search campaigns..."
-                className="w-full pl-9 pr-4 py-2 bg-zinc-100 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0ea5e9]/30 placeholder:text-zinc-400 font-mono transition-shadow"
+            {/* Search Input & Range Filter */}
+            <div className="flex items-center gap-2.5">
+              <div className="relative w-64 sm:w-80 shrink-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                <input
+                  type="text"
+                  value={globalFilter}
+                  onChange={(e) => setGlobalFilter(e.target.value)}
+                  placeholder="Search campaigns..."
+                  className="w-full pl-9 pr-4 py-2 bg-zinc-100 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0ea5e9]/30 placeholder:text-zinc-400 font-mono transition-shadow"
+                />
+              </div>
+
+              {/* Metric Range Filter Button & Popover */}
+              <MetricRangeFilter
+                campaigns={accountFilteredData}
+                filters={metricFilters}
+                onChange={setMetricFilters}
+                filteredCount={data.length}
+                totalCount={accountFilteredData.length}
               />
             </div>
 
-            {/* Right Toolbar: Refresh + Account Buttons */}
+            {/* Right Toolbar: Account Selector Pills */}
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => refreshCampaigns(tableFilterAccountIds)}
-                disabled={campaignsFetching}
-                title="Refresh campaigns for selected accounts"
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-mono font-medium rounded-lg border border-zinc-200 dark:border-zinc-700/60 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700/60 transition-colors disabled:opacity-50 cursor-pointer whitespace-nowrap"
-              >
-                <RotateCw
-                  className={cn('h-3.5 w-3.5', campaignsFetching && 'animate-spin text-[#0ea5e9]')}
-                />
-                <span>REFRESH</span>
-              </button>
-
               {enabledAccounts.length > 0 && (
                 <div className="flex items-center bg-zinc-100 dark:bg-zinc-800/50 p-1 rounded-lg border border-zinc-200 dark:border-zinc-700/50 gap-1 overflow-x-auto">
                   {enabledAccounts.map((acc) => {
@@ -304,9 +373,26 @@ export default function AdsManagementPage() {
                   </span>
                 </div>
               )}
-              <span>
-                {rows.length} ROWS · {selectedCount} SELECTED
-              </span>
+              {Object.keys(metricFilters).length > 0 ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-[#0ea5e9] font-semibold">
+                    {rows.length} OF {accountFilteredData.length} ROWS
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setMetricFilters({})}
+                    className="px-1.5 py-0.5 text-[9px] font-mono font-semibold text-[#0ea5e9] hover:text-white hover:bg-[#0ea5e9] border border-[#0ea5e9]/40 rounded tracking-wider uppercase transition-colors cursor-pointer"
+                    title="Reset all range filters"
+                  >
+                    CLEAR FILTERS
+                  </button>
+                  <span>· {selectedCount} SELECTED</span>
+                </div>
+              ) : (
+                <span>
+                  {rows.length} ROWS · {selectedCount} SELECTED
+                </span>
+              )}
               {selectedCount > 0 && (
                 <button
                   type="button"
@@ -473,17 +559,35 @@ export default function AdsManagementPage() {
           ) : rows.length === 0 ? (
             <div className="h-full min-h-[500px] w-full flex flex-col items-center justify-center text-center p-8 gap-2 font-mono">
               <div className="p-3 rounded-full bg-zinc-100 dark:bg-zinc-800/80 mb-1 border border-zinc-200 dark:border-zinc-700/60">
-                <Search className="h-5 w-5 text-zinc-400" />
+                {Object.keys(metricFilters).length > 0 ? (
+                  <SlidersHorizontal className="h-5 w-5 text-[#0ea5e9]" />
+                ) : (
+                  <Search className="h-5 w-5 text-zinc-400" />
+                )}
               </div>
               <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-                No campaigns found
+                {Object.keys(metricFilters).length > 0
+                  ? 'No campaigns match range filter'
+                  : 'No campaigns found'}
               </span>
               <span className="text-xs text-zinc-500 max-w-sm">
-                Try adjusting your search terms or account filters above.
+                {Object.keys(metricFilters).length > 0
+                  ? 'Try expanding your From & To values or resetting your range filter.'
+                  : 'Try adjusting your search terms or account filters above.'}
               </span>
+              {Object.keys(metricFilters).length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setMetricFilters({})}
+                  className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium rounded-lg bg-[#0ea5e9] hover:bg-[#0284c7] text-white transition-colors cursor-pointer shadow-xs"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  <span>Reset Range Filters</span>
+                </button>
+              )}
             </div>
           ) : (
-            <table className="w-full text-left border-collapse table-fixed min-w-[700px]">
+            <table className="w-full text-left border-collapse table-fixed min-w-[780px]">
               <colgroup>
                 {table.getVisibleLeafColumns().map((col) => (
                   <col
@@ -580,6 +684,14 @@ export default function AdsManagementPage() {
           )}
         </div>
       </motion.div>
+
+      <BulkActionBar
+        selectedItems={selectedCampaignItems}
+        onClearSelection={() => setRowSelection({})}
+      />
+
+      {/* Campaign Detail Modal */}
+      <CampaignDetailModal campaign={viewCampaign} onClose={() => setViewCampaign(null)} />
     </div>
   );
 }

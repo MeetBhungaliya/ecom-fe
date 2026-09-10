@@ -5,6 +5,7 @@ import { create } from 'zustand';
 // Retains live background pagination sync state
 // across route navigation so progress bars and
 // active sync statuses never reset on page switch.
+// Also coordinates global TopBar refresh with Ads management.
 // ============================================
 
 export interface AccountSyncProgress {
@@ -20,6 +21,12 @@ interface AdsSyncState {
   setSyncProgress: (accountId: string | number, progress: AccountSyncProgress) => void;
   removeSyncProgress: (accountId: string | number) => void;
   clearAll: () => void;
+
+  // Header refresh integration
+  isFetching: boolean;
+  setIsFetching: (isFetching: boolean) => void;
+  refreshHandler?: () => Promise<void> | void;
+  setRefreshHandler: (handler?: () => Promise<void> | void) => void;
 }
 
 export const useAdsSyncStore = create<AdsSyncState>()((set) => ({
@@ -41,4 +48,9 @@ export const useAdsSyncStore = create<AdsSyncState>()((set) => ({
     }),
 
   clearAll: () => set({ syncProgress: {} }),
+
+  isFetching: false,
+  setIsFetching: (isFetching) => set({ isFetching }),
+  refreshHandler: undefined,
+  setRefreshHandler: (refreshHandler) => set({ refreshHandler }),
 }));
