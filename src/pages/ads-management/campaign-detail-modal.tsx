@@ -67,25 +67,6 @@ function fmtDate(raw: unknown): string | null {
   return null;
 }
 
-function statusMeta(raw: string | undefined | null) {
-  const s = String(raw ?? '').toUpperCase();
-  if (s === 'ACTIVE' || s === 'LIVE' || s === 'RUNNING')
-    return {
-      label: s || 'ACTIVE',
-      cls: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25',
-    };
-  if (s === 'PAUSED')
-    return {
-      label: 'PAUSED',
-      cls: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25',
-    };
-  if (s === 'DELETED' || s === 'STOPPED')
-    return { label: s, cls: 'bg-red-500/10 text-red-500 dark:text-red-400 border-red-500/25' };
-  if (s)
-    return { label: s, cls: 'bg-zinc-500/10 text-zinc-500 dark:text-zinc-400 border-zinc-500/20' };
-  return null;
-}
-
 // ─── Stat Card ───────────────────────────────────────────────────────────────
 
 function StatCard({
@@ -418,9 +399,9 @@ export function CampaignDetailModal({ campaign, onClose }: CampaignDetailModalPr
   // Campaign-level perf (check multiple paths Meesho might return)
   const campaignObj =
     raw?.data?.campaign_data ?? raw?.campaign_data ?? raw?.campaignData ?? raw?.data ?? raw ?? {};
-  
+
   const bidType = raw?.data?.bid_type ?? raw?.bid_type ?? campaignObj?.bid_type ?? 'Bid / CPO';
-  
+
   const perf =
     campaignObj?.campaign_performance ??
     campaignObj?.perf_details ??
