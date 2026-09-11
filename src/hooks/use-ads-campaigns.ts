@@ -426,6 +426,41 @@ export interface PauseCampaignPayload {
   pause_nudge_status?: string;
 }
 
+export interface EditCatalogBidPayload {
+  accountId: number | string;
+  campaign_id: number | string;
+  supplier_id?: number;
+  catalog_id: number | string;
+  bid: number;
+  prefilled_input_value?: number;
+}
+
+export function useEditCatalogBid() {
+  return useMutation({
+    mutationFn: async (payload: EditCatalogBidPayload) =>
+      api.post<{ success: boolean; message: string; data?: unknown }>(
+        '/accounts/ads/campaigns/edit-catalogs',
+        {
+          accountId: payload.accountId,
+          campaign_id: payload.campaign_id,
+          supplier_id: payload.supplier_id,
+          catalog_id: payload.catalog_id,
+          bid: payload.bid,
+          prefilled_input_value: payload.prefilled_input_value || payload.bid,
+        },
+      ),
+    onSuccess: (res, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['campaign-details', variables.campaign_id, variables.accountId],
+      });
+      toast.success(res.message || 'Bid updated successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.error || error?.message || 'Failed to update bid');
+    },
+  });
+}
+
 export function usePauseAdsCampaign() {
   return useMutation({
     mutationFn: async (payload: PauseCampaignPayload) => {

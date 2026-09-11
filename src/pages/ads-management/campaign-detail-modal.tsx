@@ -21,14 +21,19 @@ import {
   Info,
   ChevronLeft,
   ChevronRight,
-  Pencil,
   Hash,
   Pause,
+  Plus,
+  Minus,
 } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import type { EnrichedAdsCampaign } from '@/hooks/use-ads-campaigns';
-import { useCampaignDetails, usePauseAdsCampaign } from '@/hooks/use-ads-campaigns';
+import {
+  useCampaignDetails,
+  usePauseAdsCampaign,
+  useEditCatalogBid,
+} from '@/hooks/use-ads-campaigns';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -177,7 +182,15 @@ function ImageStrip({ urls, name }: { urls: string[]; name: string }) {
 
 // ─── Catalog Card ─────────────────────────────────────────────────────────────
 
-function CatalogCard({ catalog }: { catalog: any }) {
+function CatalogCard({
+  catalog,
+  campaign,
+  bidType = 'Bid / CPO',
+}: {
+  catalog: any;
+  campaign: EnrichedAdsCampaign;
+  bidType?: string;
+}) {
   const images: string[] =
     catalog.catalog_image_urls ||
     catalog.catalogImageUrls ||
@@ -188,9 +201,56 @@ function CatalogCard({ catalog }: { catalog: any }) {
   const catalogId = catalog.catalog_id ?? catalog.catalogId ?? catalog.id;
   const catalogName =
     catalog.catalog_name ?? catalog.catalogName ?? catalog.name ?? `Catalog #${catalogId}`;
-  const bid = catalog.bid ?? catalog.max_bid ?? catalog.cpo ?? catalog.max_cpo;
-  const statusRaw = catalog.catalog_status ?? catalog.status;
-  const st = statusMeta(statusRaw);
+  const initialBid = Number(catalog.bid ?? catalog.max_bid ?? catalog.cpo ?? catalog.max_cpo ?? 0);
+  const [localBid, setLocalBid] = useState(initialBid.toString());
+  const [debouncedBid, setDebouncedBid] = useState(localBid);
+  const [lastSavedBid, setLastSavedBid] = useState(initialBid);
+  const { mutate: editBid, isPending: isSavingBid } = useEditCatalogBid();
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedBid(localBid), 600);
+    return () => window.clearTimeout(timer);
+  }, [localBid]);
+
+  useEffect(() => {
+    const bid = Number(debouncedBid);
+    if (
+      debouncedBid === '' ||
+      Number.isNaN(bid) ||
+      bid === lastSavedBid ||
+      campaign.account_id == null ||
+      catalogId == null
+    )
+      return;
+
+    editBid(
+      {
+        accountId: campaign.account_id,
+        campaign_id: campaign.campaign_id,
+        supplier_id: (campaign as any).supplier_id,
+        catalog_id: catalogId,
+        bid,
+        prefilled_input_value: lastSavedBid,
+      },
+      { onSuccess: () => setLastSavedBid(bid) },
+    );
+  }, [debouncedBid, lastSavedBid, campaign, catalogId, editBid]);
+
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    let value = event.target.value.replace(/[^0-9]/g, '');
+    if (value !== '' && Number(value) > 100) value = '100';
+    setLocalBid(value);
+  };
+
+  const handleBlur = () => {
+    const bid = Math.min(100, Math.max(1, Number(localBid) || 1));
+    setLocalBid(bid.toString());
+  };
+
+  const updateBid = (delta: number) => {
+    const bid = Math.min(100, Math.max(1, (Number(localBid) || 1) + delta));
+    setLocalBid(bid.toString());
+  };
 
   const perf = catalog.perf_details || catalog.perfDetails || {};
   const views = perf.total_views ?? perf.totalViews ?? catalog.views;
@@ -213,13 +273,6 @@ function CatalogCard({ catalog }: { catalog: any }) {
           >
             {catalogName}
           </span>
-          {st && (
-            <span
-              className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono font-semibold rounded tracking-wider shrink-0 border ${st.cls}`}
-            >
-              {st.label}
-            </span>
-          )}
         </div>
 
         {/* IDs row */}
@@ -265,24 +318,42 @@ function CatalogCard({ catalog }: { catalog: any }) {
 
       {/* Bid — prominent right column */}
       <div className="shrink-0 flex flex-col items-end justify-between gap-2">
-        <div className="flex flex-col items-end gap-0.5">
-          <span className="text-[9px] font-mono font-semibold tracking-widest text-zinc-400 uppercase">
-            Bid / CPO
+        <div className="flex flex-col items-end gap-1.5">
+          <span className="text-xs font-mono font-semibold tracking-widest text-zinc-400 uppercase">
+            {bidType}
           </span>
-          <span className="text-base font-bold font-mono text-zinc-900 dark:text-zinc-100 leading-none">
-            {bid != null ? fmtCurrency(bid) : '—'}
-          </span>
+          <div className="flex items-center border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden bg-white dark:bg-zinc-900 shadow-sm relative transition-all focus-within:ring-2 focus-within:ring-[#0ea5e9]/50 focus-within:border-[#0ea5e9]">
+            <button
+              type="button"
+              onClick={() => updateBid(-1)}
+              disabled={isSavingBid}
+              className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <Minus className="h-3.5 w-3.5" />
+            </button>
+            <div className="flex items-center relative group">
+              <input
+                type="text"
+                value={localBid}
+                onChange={handleInputChange}
+                onBlur={handleBlur}
+                disabled={isSavingBid}
+                className="w-14 py-1.5 text-sm font-bold font-mono text-center text-zinc-900 dark:text-zinc-100 bg-transparent outline-none disabled:opacity-50"
+              />
+              {isSavingBid && (
+                <Loader2 className="absolute left-1/2 top-1/2 -translate-y-1/2 -translate-x-1/2 h-3.5 w-3.5 animate-spin text-[#0ea5e9]" />
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => updateBid(1)}
+              disabled={isSavingBid}
+              className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
-        {/* Edit bid button — placeholder for future edit capability */}
-        <button
-          type="button"
-          disabled
-          title="Edit bid (coming soon)"
-          className="flex items-center gap-1 px-2 py-1 text-[10px] font-mono font-medium rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 opacity-60 cursor-not-allowed transition-colors hover:opacity-80"
-        >
-          <Pencil className="h-2.5 w-2.5" />
-          Edit
-        </button>
       </div>
     </div>
   );
@@ -347,6 +418,9 @@ export function CampaignDetailModal({ campaign, onClose }: CampaignDetailModalPr
   // Campaign-level perf (check multiple paths Meesho might return)
   const campaignObj =
     raw?.data?.campaign_data ?? raw?.campaign_data ?? raw?.campaignData ?? raw?.data ?? raw ?? {};
+  
+  const bidType = raw?.data?.bid_type ?? raw?.bid_type ?? campaignObj?.bid_type ?? 'Bid / CPO';
+  
   const perf =
     campaignObj?.campaign_performance ??
     campaignObj?.perf_details ??
@@ -564,6 +638,8 @@ export function CampaignDetailModal({ campaign, onClose }: CampaignDetailModalPr
                         <CatalogCard
                           key={catalog.catalog_id ?? catalog.id ?? idx}
                           catalog={catalog}
+                          campaign={campaign}
+                          bidType={bidType}
                         />
                       ))
                     )}
