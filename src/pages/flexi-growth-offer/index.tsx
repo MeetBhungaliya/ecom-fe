@@ -67,6 +67,7 @@ function DateRangePickerField({
   minDate?: Date;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const isDesktop = useIsDesktop();
 
   return (
     <div className={cn('grid gap-2', className)}>
@@ -79,7 +80,7 @@ function DateRangePickerField({
             variant="outline"
             className={cn(
               'w-full justify-start text-left font-normal rounded-xl text-sm h-11 px-3',
-              !dateRange && 'text-muted-foreground',
+              !dateRange?.from && 'text-muted-foreground',
               error && 'border-destructive focus-visible:ring-destructive',
             )}
           >
@@ -90,27 +91,49 @@ function DateRangePickerField({
                   {format(dateRange.from, 'LLL dd, yyyy')} - {format(dateRange.to, 'LLL dd, yyyy')}
                 </>
               ) : (
-                format(dateRange.from, 'LLL dd, yyyy')
+                `${format(dateRange.from, 'LLL dd, yyyy')} - Select end date`
               )
             ) : (
-              <span>Pick a date</span>
+              <span>Pick start & end date</span>
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <PopoverContent className="w-auto p-0" align="start">
           <Calendar
             mode="range"
             defaultMonth={dateRange?.from || minDate}
             selected={dateRange}
             onSelect={(range) => {
               onDateRangeChange(range);
-              if (range?.from && range?.to) {
+              // Only auto-close if both from and to are selected and they are distinct or completed
+              if (range?.from && range?.to && range.from.getTime() !== range.to.getTime()) {
                 setIsOpen(false);
               }
             }}
-            numberOfMonths={2}
+            numberOfMonths={isDesktop ? 2 : 1}
             disabled={minDate ? (d) => d < minDate : undefined}
           />
+          {dateRange?.from && (
+            <div className="flex items-center justify-between border-t border-border/40 p-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-7"
+                onClick={() => onDateRangeChange(undefined)}
+              >
+                Clear
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                className="text-xs h-7"
+                disabled={!dateRange.to}
+                onClick={() => setIsOpen(false)}
+              >
+                Done
+              </Button>
+            </div>
+          )}
         </PopoverContent>
       </Popover>
       {error && <p className="text-destructive text-xs font-medium">{error}</p>}
