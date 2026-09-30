@@ -67,7 +67,7 @@ export function AppShell() {
           ref={mainRef}
           className="flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain"
         >
-          <div className="mx-auto w-full max-w-7xl px-4 py-4 md:px-6 lg:px-8 lg:py-6 pb-20 md:pb-6">
+          <div className="mx-auto w-full max-w-7xl p-4 md:p-6 lg:p-8">
             <Outlet />
           </div>
         </main>

@@ -1,40 +1,299 @@
-import { useState } from 'react';
+import { useAccounts } from '@/hooks/use-accounts';
 import { useIsDesktop } from '@/hooks/use-media-query';
 import { useOnlineStatus } from '@/hooks/use-online-status';
-import { useMarketplaceStore } from '@/store/marketplace.store';
-import { WifiOff, Loader2, Check, RefreshCw } from 'lucide-react';
-import { useAccounts } from '@/hooks/use-accounts';
-import { useQueryClient } from '@tanstack/react-query';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/cn';
-
-import { useLocation } from 'react-router';
 import { useAdsSyncStore } from '@/store/ads.store';
+import { useMarketplaceStore } from '@/store/marketplace.store';
+import { useQueryClient } from '@tanstack/react-query';
+import { Check, Loader2, RefreshCw, Users, WifiOff } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getInitials(name?: string) {
   if (!name) return 'A';
+  const words = name.trim().split(/\s+/);
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
   return name.substring(0, 2).toUpperCase();
 }
 
+const PAGE_TITLES: Record<string, string> = {
+  '/dashboard': 'Dashboard',
+  '/inventory': 'Inventory',
+  '/inventory/add': 'Add Product',
+  '/inventory/analytics': 'Inventory Analytics',
+  '/accounts': 'Marketplace Accounts',
+  '/accounts/connect': 'Connect Meesho Account',
+  '/ads-management': 'Ads Management',
+  '/flexi-growth-offer': 'Flexi Growth Offer',
+  '/return-otps': 'Return OTPs',
+  '/download-app': 'Get the Mobile App',
+};
+
 const getPageTitle = (pathname: string) => {
-  if (pathname === '/dashboard') return 'Dashboard';
-  if (pathname === '/inventory') return 'Inventory';
-  if (pathname === '/inventory/add') return 'Add Product';
+  if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
   if (pathname.startsWith('/inventory/') && pathname.endsWith('/edit')) return 'Edit Product';
-  if (pathname === '/inventory/analytics') return 'Inventory Analytics';
-  if (pathname === '/accounts') return 'Marketplace Accounts';
-  if (pathname === '/accounts/connect') return 'Connect Meesho Account';
-  if (pathname === '/ads-management') return 'Ads Management';
-  if (pathname === '/flexi-growth-offer') return 'Flexi Growth Offer';
-  if (pathname === '/return-otps') return 'Return OTPs';
-  if (pathname === '/download-app') return 'Get the Mobile App';
   return '';
 };
+
+// ─── Avatar chip ──────────────────────────────────────────────────────────────
+
+function Avatar({ name, size = 28 }: { name: string; size?: number }) {
+  const initials = getInitials(name);
+  return (
+    <span
+      className="inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold select-none shrink-0 border-2 border-background"
+      style={{ width: size, height: size, fontSize: size * 0.35 }}
+      aria-hidden="true"
+    >
+      {initials}
+    </span>
+  );
+}
+
+// ─── Refresh button ───────────────────────────────────────────────────────────
+
+interface RefreshButtonProps {
+  isRefreshing: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}
+
+function RefreshButton({ isRefreshing, disabled, onClick }: RefreshButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      aria-label="Refresh data"
+      className={cn(
+        'relative flex items-center justify-center w-[38px] h-[38px] shrink-0 rounded-xl',
+        'bg-muted/60 border border-border/40 text-muted-foreground',
+        'active:scale-90 active:bg-muted active:text-foreground',
+        'transition-[transform,opacity] duration-150 ease-out',
+        'disabled:opacity-40 disabled:cursor-not-allowed',
+        'md:hover:bg-muted md:hover:text-foreground md:hover:border-border/70',
+      )}
+    >
+      {isRefreshing && (
+        <span
+          className="absolute inset-0 rounded-xl border border-sky-500/50 animate-ping pointer-events-none"
+          style={{ animationDuration: '1s' }}
+        />
+      )}
+      <RefreshCw
+        className={cn(
+          'w-[15px] h-[15px]',
+          isRefreshing ? 'animate-spin text-sky-400' : 'text-muted-foreground',
+        )}
+        style={isRefreshing ? { animationDuration: '0.7s' } : undefined}
+        strokeWidth={2.2}
+      />
+    </button>
+  );
+}
+
+// ─── Account Selector ─────────────────────────────────────────────────────────
+
+interface AccountSelectorProps {
+  accounts: import('@/types').MarketplaceAccount[];
+  activeAccountIds: string[];
+  toggleActiveAccount: (id: string) => void;
+}
+
+function AccountSelector({
+  accounts,
+  activeAccountIds,
+  toggleActiveAccount,
+}: AccountSelectorProps) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const selected = accounts.filter((a) => activeAccountIds.includes(a.id.toString()));
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: PointerEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', handler, { passive: true });
+    return () => document.removeEventListener('pointerdown', handler);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [open]);
+
+  const handleToggle = useCallback(
+    (id: string) => {
+      toggleActiveAccount(id);
+    },
+    [toggleActiveAccount],
+  );
+
+  return (
+    <div ref={containerRef} className="relative">
+      {/* Trigger */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label="Select accounts"
+        className={cn(
+          'flex items-center gap-1.5 h-[38px] rounded-xl border px-2.5',
+          'bg-muted/60 border-border/40 text-foreground',
+          'active:scale-95 active:bg-muted',
+          'transition-[transform,box-shadow,border-color] duration-150 ease-out',
+          'md:hover:border-border/70 md:hover:bg-muted',
+          open && 'border-primary/50 bg-muted shadow-[0_0_0_3px_hsl(var(--primary)/0.12)]',
+        )}
+      >
+        {/* Avatar stack */}
+        <span className="flex items-center" aria-hidden="true">
+          {selected.length === 0 ? (
+            <span className="inline-flex items-center justify-center w-[22px] h-[22px] rounded-full border border-dashed border-border/70 text-muted-foreground">
+              <Users className="w-3 h-3" />
+            </span>
+          ) : (
+            <span className="flex -space-x-2">
+              {selected.slice(0, 3).map((acc, i) => (
+                <span key={acc.id} className="relative inline-flex" style={{ zIndex: 10 - i }}>
+                  <Avatar name={acc.supplierData?.name || acc.email} size={22} />
+                </span>
+              ))}
+              {selected.length > 3 && (
+                <span
+                  className="relative inline-flex items-center justify-center w-[22px] h-[22px] rounded-full bg-muted border-2 border-background text-[9px] font-bold text-muted-foreground"
+                  style={{ zIndex: 7 }}
+                >
+                  +{selected.length - 3}
+                </span>
+              )}
+            </span>
+          )}
+        </span>
+
+        {/* Label */}
+        <span className="hidden sm:block text-xs font-medium text-foreground/80 leading-none max-w-[72px] truncate">
+          {selected.length === 0
+            ? 'All'
+            : selected.length === 1
+              ? (selected[0].supplierData?.name || selected[0].email).split(' ')[0]
+              : `${selected.length} accounts`}
+        </span>
+
+        {/* Chevron */}
+        <svg
+          className={cn(
+            'w-3 h-3 shrink-0 text-muted-foreground transition-transform duration-150',
+            open && 'rotate-180',
+          )}
+          viewBox="0 0 12 12"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M2 4l4 4 4-4" />
+        </svg>
+      </button>
+
+      {/* Dropdown panel — GPU-composited transform+opacity only */}
+      <div
+        role="listbox"
+        aria-label="Account list"
+        aria-multiselectable="true"
+        className={cn(
+          'absolute right-0 top-[calc(100%+6px)] z-50',
+          'w-60 rounded-xl overflow-hidden',
+          'bg-card/95 border border-border/50',
+          'shadow-[0_8px_24px_rgba(0,0,0,0.35)] backdrop-blur-md',
+          'transition-[transform,opacity] duration-200 ease-out origin-top-right',
+          open
+            ? 'opacity-100 scale-100 pointer-events-auto'
+            : 'opacity-0 scale-95 pointer-events-none',
+        )}
+        style={{ willChange: 'transform, opacity' }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-3 py-2.5 border-b border-border/40">
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+            Accounts
+          </span>
+          {selected.length > 0 && (
+            <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+              {selected.length} active
+            </span>
+          )}
+        </div>
+
+        {/* Account rows */}
+        <ul className="py-1" role="presentation">
+          {accounts.map((acc) => {
+            const isSelected = activeAccountIds.includes(acc.id.toString());
+            const displayName = acc.supplierData?.name || acc.email;
+
+            return (
+              <li key={acc.id} role="presentation">
+                <button
+                  role="option"
+                  aria-selected={isSelected}
+                  onClick={() => handleToggle(acc.id.toString())}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2.5 min-h-[44px]',
+                    'active:bg-muted/80',
+                    'md:hover:bg-muted/60',
+                    isSelected ? 'bg-primary/[0.08]' : '',
+                    'transition-colors duration-100',
+                  )}
+                >
+                  <Avatar name={displayName} size={30} />
+
+                  <span className="flex flex-col items-start flex-1 min-w-0">
+                    <span
+                      className={cn(
+                        'text-sm font-medium truncate w-full text-left leading-tight',
+                        isSelected ? 'text-primary' : 'text-foreground',
+                      )}
+                    >
+                      {displayName}
+                    </span>
+                    {acc.supplierData?.name && (
+                      <span className="text-[10px] text-muted-foreground truncate w-full text-left leading-tight mt-0.5">
+                        {acc.email}
+                      </span>
+                    )}
+                  </span>
+
+                  <span
+                    className={cn(
+                      'flex items-center justify-center w-4 h-4 rounded shrink-0 border transition-colors duration-100',
+                      isSelected
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'border-border/60 bg-transparent',
+                    )}
+                  >
+                    {isSelected && <Check className="w-2.5 h-2.5" strokeWidth={3} />}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+// ─── TopBar ───────────────────────────────────────────────────────────────────
 
 export function TopBar() {
   const isDesktop = useIsDesktop();
@@ -42,7 +301,6 @@ export function TopBar() {
   const { pathname } = useLocation();
   const pageTitle = getPageTitle(pathname);
 
-  // Account selection
   const { data: accounts, isLoading: accountsLoading } = useAccounts();
   const activeAccountIds = useMarketplaceStore((s) => s.activeAccountIds);
   const toggleActiveAccount = useMarketplaceStore((s) => s.toggleActiveAccount);
@@ -52,7 +310,7 @@ export function TopBar() {
   const adsRefreshHandler = useAdsSyncStore((s) => s.refreshHandler);
   const adsIsFetching = useAdsSyncStore((s) => s.isFetching);
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
       if (pathname === '/ads-management' && adsRefreshHandler) {
@@ -65,128 +323,63 @@ export function TopBar() {
     } finally {
       setTimeout(() => setIsRefreshing(false), 600);
     }
-  };
+  }, [pathname, adsRefreshHandler, queryClient]);
 
-  const selectedAccounts =
-    accounts?.filter((a) => activeAccountIds.includes(a.id.toString())) || [];
+  const isRefreshDisabled = isRefreshing || (pathname === '/ads-management' && adsIsFetching);
 
   return (
     <header
-      className="flex shrink-0 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur-lg supports-[backdrop-filter]:bg-background/80 md:px-6"
+      className="flex shrink-0 items-center gap-2.5 border-b border-border/60 bg-background/95 px-4 backdrop-blur-lg supports-[backdrop-filter]:bg-background/80 md:px-6"
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
         height: 'calc(3.5rem + env(safe-area-inset-top, 0px))',
       }}
     >
-      {/* Mobile: Title */}
+      {/* Mobile: Brand */}
       {!isDesktop && (
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
+        <div className="flex items-center gap-2">
+          <div className="flex h-[26px] w-[26px] items-center justify-center rounded-lg bg-primary text-[11px] font-black text-primary-foreground select-none shrink-0">
             E
           </div>
-          <span className="text-base font-semibold tracking-tight">Ecom Manager</span>
+          <span className="text-[15px] font-semibold tracking-tight text-foreground">
+            Ecom Manager
+          </span>
         </div>
       )}
 
-      {/* Desktop: Title */}
+      {/* Desktop: Page title */}
       {isDesktop && pageTitle && (
         <h1 className="text-lg font-semibold tracking-tight text-foreground">{pageTitle}</h1>
       )}
 
       <div className="flex-1" />
 
-      {/* Offline indicator */}
+      {/* Offline badge */}
       {!isOnline && (
-        <div className="flex items-center gap-1.5 rounded-full bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning mr-3">
+        <div className="flex items-center gap-1.5 rounded-full bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning">
           <WifiOff className="h-3 w-3" />
-          <span>Offline</span>
+          <span className="hidden sm:inline">Offline</span>
         </div>
       )}
 
-      {/* Global Refresh Button */}
-      <button
+      {/* Refresh */}
+      <RefreshButton
+        isRefreshing={isRefreshing || (pathname === '/ads-management' && adsIsFetching)}
+        disabled={isRefreshDisabled}
         onClick={handleRefresh}
-        disabled={isRefreshing || (pathname === '/ads-management' && adsIsFetching)}
-        className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-all flex items-center justify-center shrink-0 border border-border/20 shadow-sm disabled:opacity-50 cursor-pointer"
-        title="Refresh Data"
-      >
-        <RefreshCw
-          className={cn(
-            'h-4 w-4 transition-transform',
-            (isRefreshing || (pathname === '/ads-management' && adsIsFetching)) &&
-              'animate-spin text-[#0ea5e9]',
-          )}
-        />
-      </button>
+      />
 
-      {/* Account Selector Dropdown */}
+      {/* Account Selector */}
       {accountsLoading ? (
-        <div className="flex items-center justify-center w-10">
+        <div className="flex items-center justify-center w-[38px] h-[38px]">
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
         </div>
       ) : accounts && accounts.length > 0 ? (
-        <DropdownMenu>
-          <DropdownMenuTrigger className="outline-none">
-            <div className="flex items-center hover:opacity-80 transition-opacity p-1 rounded-full bg-muted/50 border border-border/50">
-              {selectedAccounts.length > 0 ? (
-                <div className="flex items-center -space-x-2">
-                  {selectedAccounts.map((acc, i) => (
-                    <div
-                      key={acc.id}
-                      className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground border-2 border-background ring-1 ring-border/20 z-10"
-                      style={{ zIndex: 10 - i }}
-                      title={acc.supplierData?.name || acc.email}
-                    >
-                      {getInitials(acc.supplierData?.name || acc.email)}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground border-2 border-background border-dashed">
-                  +
-                </div>
-              )}
-            </div>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            className="w-56 mt-1 shadow-xl rounded-xl border-border/50 bg-card/95 backdrop-blur-md"
-          >
-            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-              Select Accounts
-            </div>
-            {accounts.map((acc) => {
-              const isSelected = activeAccountIds.includes(acc.id.toString());
-              return (
-                <DropdownMenuItem
-                  key={acc.id}
-                  onSelect={(e) => {
-                    e.preventDefault();
-                    toggleActiveAccount(acc.id.toString());
-                  }}
-                  className={cn(
-                    'flex items-center gap-3 cursor-pointer py-2 px-2.5 mx-1 my-0.5 rounded-lg transition-colors',
-                    isSelected ? 'bg-primary/10 text-primary' : 'text-foreground',
-                  )}
-                >
-                  <div
-                    className={cn(
-                      'flex h-4 w-4 items-center justify-center rounded border',
-                      isSelected
-                        ? 'bg-primary border-primary text-primary-foreground'
-                        : 'border-input bg-background',
-                    )}
-                  >
-                    {isSelected && <Check className="h-3 w-3" strokeWidth={3} />}
-                  </div>
-                  <span className="flex-1 truncate font-medium text-sm">
-                    {acc.supplierData?.name || acc.email}
-                  </span>
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <AccountSelector
+          accounts={accounts}
+          activeAccountIds={activeAccountIds}
+          toggleActiveAccount={toggleActiveAccount}
+        />
       ) : null}
     </header>
   );

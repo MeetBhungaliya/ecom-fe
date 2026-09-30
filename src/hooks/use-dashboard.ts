@@ -9,6 +9,15 @@ export const dashboardKeys = {
 
 export type DashboardStats = {
   acceptedOrdersToday: number;
+  onHoldOrders: number;
+  upcomingPayment?: {
+    netAmount: number;
+    adsCost: number;
+  };
+  pastPayment?: {
+    netAmount: number;
+    adsCost: number;
+  };
 };
 
 export type DashboardActivity = {

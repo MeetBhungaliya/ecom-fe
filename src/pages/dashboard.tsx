@@ -1,31 +1,29 @@
-import { useEffect, useState, useRef } from 'react';
-import { Transmit } from '@adonisjs/transmit-client';
-import { useAuthStore } from '@/store/auth.store';
-import { useMarketplaceStore } from '@/store/marketplace.store';
-import { useQueryClient } from '@tanstack/react-query';
+import { InfoTooltip } from '@/components/ui/info-tooltip';
 import {
-  useDashboardStats,
-  useDashboardActivities,
-  useClearActivities,
   isZeroOrdersActivity,
+  useClearActivities,
+  useDashboardActivities,
+  useDashboardStats,
   type DashboardActivity,
 } from '@/hooks/use-dashboard';
+import { cn } from '@/lib/cn';
+import { timeAgo } from '@/lib/date';
+import { formatCurrency, formatPercentage } from '@/lib/formatters';
+import { useAuthStore } from '@/store/auth.store';
+import { useMarketplaceStore } from '@/store/marketplace.store';
+import { Transmit } from '@adonisjs/transmit-client';
+import { useQueryClient } from '@tanstack/react-query';
 import {
+  Activity,
+  AlertCircle,
+  ArrowDownRight,
+  ArrowUpRight,
+  Clock,
   Package,
   ShoppingCart,
-  TrendingUp,
-  ArrowUpRight,
-  ArrowDownRight,
-  Activity,
-  Clock,
-  AlertCircle,
-  CheckCircle2,
-  Trash2,
+  Trash2
 } from 'lucide-react';
-import { cn } from '@/lib/cn';
-import { formatCurrency, formatPercentage } from '@/lib/formatters';
-import { timeAgo } from '@/lib/date';
-import { useIsDesktop } from '@/hooks/use-media-query';
+import { useEffect, useRef, useState } from 'react';
 
 // ============================================
 // DASHBOARD PAGE
@@ -33,33 +31,131 @@ import { useIsDesktop } from '@/hooks/use-media-query';
 // Uses mock data and real data for accepted orders via SSE.
 // ============================================
 
+export type StatItem = {
+  label: string;
+  value: string;
+  change: number;
+  trend: 'up' | 'down' | 'neutral';
+  tooltip?: React.ReactNode;
+  valueTooltips?: [React.ReactNode, React.ReactNode];
+  valueColors?: [string, string];
+  subValue?: React.ReactNode;
+};
+
+// Formats amounts in compact Indian notation without currency symbol (K, L, Cr)
+// Truncates (floors) without rounding up to avoid showing inflated amounts like 1.90L for 1.896L
+function formatCompactAmount(value: number): string {
+  const isNegative = value < 0;
+  const abs = Math.abs(value);
+  let str = '';
+
+  const truncate2 = (num: number) => {
+    // Floor to 2 decimal places without rounding up
+    const floored = Math.floor(num * 100) / 100;
+    return floored.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+  };
+
+  if (abs >= 10000000) {
+    str = `${truncate2(abs / 10000000)}Cr`;
+  } else if (abs >= 100000) {
+    str = `${truncate2(abs / 100000)}L`;
+  } else if (abs >= 1000) {
+    str = `${truncate2(abs / 1000)}K`;
+  } else {
+    str = `${Math.floor(abs)}`;
+  }
+  return isNegative ? `-${str}` : str;
+}
+
 // --- Mock data ---
-const INITIAL_STATS = [
+const INITIAL_STATS: StatItem[] = [
   {
-    label: 'Accepted Orders',
+    label: 'Orders',
     value: '0',
     change: 0,
     trend: 'neutral' as const,
-    icon: CheckCircle2,
-    color: 'text-primary',
-    bgColor: 'bg-primary/10',
+    valueTooltips: ['Accepted', 'On Hold'],
+    valueColors: ['text-emerald-600 dark:text-emerald-400', 'text-amber-600 dark:text-amber-400'],
   },
   {
-    label: 'Total Revenue',
-    value: formatCurrency(1847293),
-    change: 0.124,
-    trend: 'up' as const,
-    icon: TrendingUp,
-    color: 'text-success',
-    bgColor: 'bg-success/10',
+    label: 'Next 7 Days Payment',
+    value: '0 / 0',
+    change: 0,
+    trend: 'neutral' as const,
+    valueTooltips: ['Net Amount', 'Ads Cost'],
+    valueColors: ['text-sky-600 dark:text-sky-400', 'text-rose-500 dark:text-rose-400'],
+  },
+  {
+    label: 'Last 30 Days Payment',
+    value: '0 / 0',
+    change: 0,
+    trend: 'neutral' as const,
+    valueTooltips: ['Net Amount', 'Ads Cost'],
+    valueColors: ['text-indigo-600 dark:text-indigo-400', 'text-rose-500 dark:text-rose-400'],
   },
 ];
 
 // --- Components ---
 
-function AnimatedNumber({ value }: { value: string }) {
+function AnimatedNumber({
+  value,
+  tooltips,
+  colors,
+}: {
+  value: string;
+  tooltips?: [React.ReactNode, React.ReactNode];
+  colors?: [string, string];
+}) {
+  // If value contains a slash (e.g. "12 / 13"), render formatted parts with individual tooltips and colors
+  if (value.includes('/')) {
+    const parts = value.split('/').map((s) => s.trim());
+    return (
+      <span className="inline-flex items-baseline gap-1.5 font-bold tracking-tight">
+        {tooltips?.[0] ? (
+          <InfoTooltip content={tooltips[0]} side="top" delayDuration={50}>
+            <span className={cn('transition-opacity hover:opacity-80 cursor-default', colors?.[0])}>
+              <AnimatedSingleNumber value={parts[0]} colorClass={colors?.[0]} />
+            </span>
+          </InfoTooltip>
+        ) : (
+          <span className={cn('transition-opacity', colors?.[0])}>
+            <AnimatedSingleNumber value={parts[0]} colorClass={colors?.[0]} />
+          </span>
+        )}
+        <span className="text-muted-foreground/40 font-normal text-xl select-none px-0.5">/</span>
+        {tooltips?.[1] ? (
+          <InfoTooltip content={tooltips[1]} side="top" delayDuration={50}>
+            <span className={cn('transition-opacity hover:opacity-80 cursor-default', colors?.[1])}>
+              <AnimatedSingleNumber value={parts[1]} colorClass={colors?.[1]} />
+            </span>
+          </InfoTooltip>
+        ) : (
+          <span className={cn('transition-opacity', colors?.[1])}>
+            <AnimatedSingleNumber value={parts[1]} colorClass={colors?.[1]} />
+          </span>
+        )}
+      </span>
+    );
+  }
+
+  return (
+    <span className={cn(colors?.[0])}>
+      <AnimatedSingleNumber value={value} colorClass={colors?.[0]} />
+    </span>
+  );
+}
+
+function AnimatedSingleNumber({
+  value,
+  colorClass,
+}: {
+  value: string;
+  colorClass?: string;
+}) {
   const numericVal = parseFloat(value.replace(/,/g, '').replace(/[^0-9.]/g, ''));
   const isNumeric = !isNaN(numericVal);
+  const hasDecimals = value.includes('.');
+  const decimalPlaces = hasDecimals ? (value.split('.')[1]?.match(/^\d+/)?.[0]?.length || 0) : 0;
   const prefix = value.match(/^[^\d]*/)?.[0] || '';
   const suffix = value.match(/[^\d]*$/)?.[0] || '';
 
@@ -85,7 +181,7 @@ function AnimatedNumber({ value }: { value: string }) {
         // Easing function (easeOutExpo)
         const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
         const current = start + (end - start) * ease;
-        setDisplayCount(Math.round(current));
+        setDisplayCount(current);
 
         if (progress < 1) {
           requestAnimationFrame(animate);
@@ -99,17 +195,22 @@ function AnimatedNumber({ value }: { value: string }) {
     }
   }, [numericVal, isNumeric]);
 
-  if (!isNumeric) return <span>{value}</span>;
+  if (!isNumeric) return <span className={colorClass}>{value}</span>;
+
+  const formattedNum = hasDecimals
+    ? displayCount.toFixed(decimalPlaces)
+    : Math.round(displayCount).toLocaleString();
 
   return (
     <span
       className={cn(
         'inline-block transition-all duration-300 transform',
-        isUpdating && 'scale-110 text-primary font-extrabold',
+        colorClass,
+        isUpdating && 'scale-105 brightness-110 font-black',
       )}
     >
       {prefix}
-      {displayCount.toLocaleString()}
+      {formattedNum}
       {suffix}
     </span>
   );
@@ -120,49 +221,73 @@ function StatCard({
   value,
   change,
   trend,
-  icon: Icon,
-  color,
-  bgColor,
+  tooltip,
+  valueTooltips,
+  valueColors,
+  subValue,
   loading,
-}: (typeof INITIAL_STATS)[0] & { loading?: boolean }) {
+}: StatItem & { loading?: boolean }) {
   if (loading) {
     return (
-      <div className="group relative overflow-hidden rounded-xl border border-border bg-card p-5 animate-pulse">
-        <div className="flex items-start justify-between">
-          <div className="space-y-3 flex-1 mr-4">
-            <div className="h-4 bg-muted rounded w-24" />
-            <div className="h-7 bg-muted rounded w-16" />
+      <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-b from-card/80 to-card p-5 shadow-sm animate-pulse">
+        <div className="space-y-2.5">
+          {/* Label placeholder matching uppercase tracking-wider style */}
+          <div className="h-3.5 bg-muted/60 rounded-md w-28" />
+
+          {/* Number / value placeholder matching bifurcated dual numbers */}
+          <div className="flex items-baseline gap-2 pt-1">
+            <div className="h-8.5 bg-muted/70 rounded-md w-20" />
+            <div className="h-4 bg-muted/40 rounded w-2.5" />
+            <div className="h-8.5 bg-muted/70 rounded-md w-16" />
           </div>
-          <div className="rounded-lg p-5 bg-muted/40 w-10 h-10 shrink-0" />
         </div>
-        <div className="mt-3 flex items-center gap-1.5">
-          <div className="h-3.5 bg-muted rounded w-24" />
-        </div>
+
+        {/* Ambient subtle glow matching the main card */}
+        <div className="absolute top-0 right-0 -mr-8 -mt-8 w-24 h-24 rounded-full bg-muted/10 blur-2xl pointer-events-none" />
       </div>
     );
   }
 
   return (
-    <div className="group relative overflow-hidden rounded-xl border border-border bg-card p-5 transition-all duration-200 hover:border-border/80 hover:shadow-md">
-      <div className="flex items-start justify-between">
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-muted-foreground">{label}</p>
-          <p className="text-2xl font-bold tracking-tight text-foreground">
-            <AnimatedNumber value={value} />
-          </p>
-        </div>
-        <div
-          className={cn(
-            'rounded-lg p-2.5 transition-transform duration-300 group-hover:scale-110',
-            bgColor,
-          )}
-        >
-          <Icon className={cn('h-5 w-5', color)} />
+    <div className="group relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-b from-card/90 via-card to-card/95 p-5 transition-all duration-300 hover:border-border hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5">
+      {/* Top ambient glow matching card accent color */}
+      <div className="absolute top-0 right-0 -mr-8 -mt-8 w-24 h-24 rounded-full bg-primary/[0.03] group-hover:bg-primary/[0.07] blur-2xl transition-all duration-500 pointer-events-none" />
+
+      <div className="flex items-start justify-between relative z-10">
+        <div className="space-y-2.5">
+          <div className="flex items-center gap-1.5">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
+              {label}
+            </p>
+          </div>
+          <div className="flex items-baseline gap-2 flex-wrap">
+            {valueTooltips ? (
+              <div className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                <AnimatedNumber value={value} tooltips={valueTooltips} colors={valueColors} />
+              </div>
+            ) : tooltip ? (
+              <InfoTooltip
+                content={tooltip}
+                side="top"
+                delayDuration={50}
+                className="select-none"
+              >
+                <span className="text-2xl sm:text-3xl font-extrabold tracking-tight transition-opacity hover:opacity-85">
+                  <AnimatedNumber value={value} colors={valueColors} />
+                </span>
+              </InfoTooltip>
+            ) : (
+              <div className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                <AnimatedNumber value={value} colors={valueColors} />
+              </div>
+            )}
+          </div>
+          {subValue && <div className="pt-0.5">{subValue}</div>}
         </div>
       </div>
 
       {change !== 0 && (
-        <div className="mt-3 flex items-center gap-1.5">
+        <div className="mt-3.5 flex items-center gap-1.5 relative z-10">
           {trend === 'up' ? (
             <ArrowUpRight className="h-3.5 w-3.5 text-success" />
           ) : (
@@ -170,18 +295,18 @@ function StatCard({
           )}
           <span
             className={cn(
-              'text-xs font-medium',
+              'text-xs font-semibold',
               trend === 'up' ? 'text-success' : 'text-destructive',
             )}
           >
             {formatPercentage(Math.abs(change))}
           </span>
-          <span className="text-xs text-muted-foreground">vs last month</span>
+          <span className="text-xs text-muted-foreground/70">vs last month</span>
         </div>
       )}
 
-      {/* Subtle gradient highlight on hover */}
-      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/[0.02] to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+      {/* Subtle shine highlight on hover */}
+      <div className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/[0.03] to-transparent transition-transform duration-1000 group-hover:translate-x-full" />
     </div>
   );
 }
@@ -228,7 +353,6 @@ function ActivityItem({ activity }: { activity: DashboardActivity }) {
 
 export default function DashboardPage() {
   const queryClient = useQueryClient();
-  const isDesktop = useIsDesktop();
   const user = useAuthStore((s) => s.user);
   const activeAccountIds = useMarketplaceStore((s) => s.activeAccountIds);
   const { data: statsData, isLoading: statsLoading } = useDashboardStats(activeAccountIds);
@@ -273,12 +397,48 @@ export default function DashboardPage() {
   // Sync initial API stats
   useEffect(() => {
     if (statsData) {
+      const accepted = statsData.acceptedOrdersToday || 0;
+      const onHold = statsData.onHoldOrders || 0;
+      const upcomingNet = statsData.upcomingPayment?.netAmount ?? 0;
+      const upcomingAds = statsData.upcomingPayment?.adsCost ?? 0;
+
       setStats((prev) =>
-        prev.map((stat) =>
-          stat.label === 'Accepted Orders'
-            ? { ...stat, value: statsData.acceptedOrdersToday.toLocaleString() }
-            : stat,
-        ),
+        prev.map((stat) => {
+          if (stat.label === 'Orders' || stat.label === 'Accepted Orders') {
+            return {
+              ...stat,
+              label: 'Orders',
+              value: `${accepted.toLocaleString()} / ${onHold.toLocaleString()}`,
+              valueTooltips: ['Accepted', 'On Hold'],
+              subValue: null,
+            };
+          }
+          if (stat.label === 'Next 7 Days Payment') {
+            return {
+              ...stat,
+              value: `${formatCompactAmount(upcomingNet)} / ${formatCompactAmount(upcomingAds)}`,
+              valueTooltips: [
+                <span>Net: {formatCurrency(upcomingNet)}</span>,
+                <span>Ads: {formatCurrency(upcomingAds)}</span>,
+              ],
+              subValue: null,
+            };
+          }
+          if (stat.label === 'Last 30 Days Payment') {
+            const pastNet = statsData.pastPayment?.netAmount ?? 0;
+            const pastAds = statsData.pastPayment?.adsCost ?? 0;
+            return {
+              ...stat,
+              value: `${formatCompactAmount(pastNet)} / ${formatCompactAmount(pastAds)}`,
+              valueTooltips: [
+                <span>Net: {formatCurrency(pastNet)}</span>,
+                <span>Ads: {formatCurrency(pastAds)}</span>,
+              ],
+              subValue: null,
+            };
+          }
+          return stat;
+        }),
       );
     }
   }, [statsData]);
@@ -350,15 +510,6 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page header */}
-      {!isDesktop && (
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Dashboard</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Overview of your commerce operations across all marketplaces.
-          </p>
-        </div>
-      )}
       {/* Stat cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => (
