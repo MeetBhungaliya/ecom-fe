@@ -43,7 +43,7 @@ function Avatar({ name, size = 28 }: { name: string; size?: number }) {
   const initials = getInitials(name);
   return (
     <span
-      className="inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold select-none shrink-0 border-2 border-background"
+      className="inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold select-none shrink-0"
       style={{ width: size, height: size, fontSize: size * 0.35 }}
       aria-hidden="true"
     >
@@ -139,7 +139,7 @@ function AccountSelector({
   );
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="relative z-50">
       {/* Trigger */}
       <button
         onClick={() => setOpen((v) => !v)}
@@ -147,33 +147,33 @@ function AccountSelector({
         aria-expanded={open}
         aria-label="Select accounts"
         className={cn(
-          'flex items-center gap-1.5 h-[38px] rounded-xl border px-2.5',
+          'flex items-center gap-1.5 h-[38px] rounded-xl border px-2.5 shrink-0',
           'bg-muted/60 border-border/40 text-foreground',
           'active:scale-95 active:bg-muted',
-          'transition-[transform,box-shadow,border-color] duration-150 ease-out',
+          'transition-[box-shadow,border-color] duration-150 ease-out',
           'md:hover:border-border/70 md:hover:bg-muted',
           open && 'border-primary/50 bg-muted shadow-[0_0_0_3px_hsl(var(--primary)/0.12)]',
         )}
       >
-        {/* Avatar stack */}
-        <span className="flex items-center" aria-hidden="true">
+        {/* Avatar stack with fixed container footprint to eliminate width jumps */}
+        <span className="flex items-center justify-center shrink-0 w-[42px] h-[22px] overflow-hidden" aria-hidden="true">
           {selected.length === 0 ? (
             <span className="inline-flex items-center justify-center w-[22px] h-[22px] rounded-full border border-dashed border-border/70 text-muted-foreground">
               <Users className="w-3 h-3" />
             </span>
           ) : (
-            <span className="flex -space-x-2">
-              {selected.slice(0, 3).map((acc, i) => (
-                <span key={acc.id} className="relative inline-flex" style={{ zIndex: 10 - i }}>
+            <span className="flex -space-x-2 shrink-0">
+              {selected.slice(0, 2).map((acc, i) => (
+                <span key={acc.id} className="relative inline-flex shrink-0" style={{ zIndex: 10 - i }}>
                   <Avatar name={acc.supplierData?.name || acc.email} size={22} />
                 </span>
               ))}
-              {selected.length > 3 && (
+              {selected.length > 2 && (
                 <span
-                  className="relative inline-flex items-center justify-center w-[22px] h-[22px] rounded-full bg-muted border-2 border-background text-[9px] font-bold text-muted-foreground"
+                  className="relative inline-flex items-center justify-center w-[22px] h-[22px] rounded-full bg-muted text-[9px] font-bold text-muted-foreground shrink-0"
                   style={{ zIndex: 7 }}
                 >
-                  +{selected.length - 3}
+                  +{selected.length - 2}
                 </span>
               )}
             </span>
@@ -181,7 +181,7 @@ function AccountSelector({
         </span>
 
         {/* Label */}
-        <span className="hidden sm:block text-xs font-medium text-foreground/80 leading-none max-w-[72px] truncate">
+        <span className="hidden sm:block text-xs font-medium text-foreground/80 leading-none w-[72px] truncate text-left">
           {selected.length === 0
             ? 'All'
             : selected.length === 1
@@ -206,16 +206,16 @@ function AccountSelector({
         </svg>
       </button>
 
-      {/* Dropdown panel — GPU-composited transform+opacity only */}
+      {/* Dropdown panel — high z-index and hardware accelerated */}
       <div
         role="listbox"
         aria-label="Account list"
         aria-multiselectable="true"
         className={cn(
-          'absolute right-0 top-[calc(100%+6px)] z-50',
-          'w-60 rounded-xl overflow-hidden',
+          'absolute right-0 top-[calc(100%+6px)] z-[100]',
+          'w-64 max-w-[calc(100vw-2rem)] rounded-xl overflow-hidden',
           'bg-card/95 border border-border/50',
-          'shadow-[0_8px_24px_rgba(0,0,0,0.35)] backdrop-blur-md',
+          'shadow-[0_12px_36px_rgba(0,0,0,0.5)] backdrop-blur-md',
           'transition-[transform,opacity] duration-200 ease-out origin-top-right',
           open
             ? 'opacity-100 scale-100 pointer-events-auto'
@@ -329,7 +329,7 @@ export function TopBar() {
 
   return (
     <header
-      className="flex shrink-0 items-center gap-2.5 border-b border-border/60 bg-background/95 px-4 backdrop-blur-lg supports-[backdrop-filter]:bg-background/80 md:px-6"
+      className="relative z-40 flex shrink-0 items-center gap-2.5 border-b border-border/60 bg-background/95 px-4 backdrop-blur-lg supports-[backdrop-filter]:bg-background/80 md:px-6"
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
         height: 'calc(3.5rem + env(safe-area-inset-top, 0px))',

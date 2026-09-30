@@ -65,9 +65,9 @@ export function AppShell() {
 
         <main
           ref={mainRef}
-          className="flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain"
+          className="flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain [-webkit-overflow-scrolling:touch]"
         >
-          <div className="mx-auto w-full max-w-7xl p-4 md:p-6 lg:p-8">
+          <div className="mx-auto w-full max-w-7xl p-4 md:p-6 lg:p-8 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] md:pb-8">
             <Outlet />
           </div>
         </main>
