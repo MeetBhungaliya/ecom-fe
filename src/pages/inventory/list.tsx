@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { useProducts } from '@/hooks/use-inventory';
-import { useInventoryTransmit } from '@/hooks/use-inventory-transmit';
+import { useInventoryWs } from '@/hooks/use-inventory-ws';
 import { useIsDesktop } from '@/hooks/use-media-query';
 import { ROUTES } from '@/constants/routes';
 import { Button } from '@/components/ui/button';
@@ -15,8 +15,8 @@ export default function InventoryListPage() {
   const navigate = useNavigate();
   const isDesktop = useIsDesktop();
 
-  // Subscribe to real-time inventory updates via SSE
-  useInventoryTransmit();
+  // Subscribe to real-time inventory updates via WebSocket
+  useInventoryWs();
 
   // --- Query Params ---
   const [params, setParams] = useState<ProductListParams>({

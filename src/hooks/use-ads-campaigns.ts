@@ -5,7 +5,7 @@ import { api, type ApiError } from '@/lib/api-client';
 import { queryClient } from '@/lib/query-client';
 import { queryKeys } from '@/constants/query-keys';
 import { useAuthStore } from '@/store/auth.store';
-import { Transmit } from '@adonisjs/transmit-client';
+import { wsClient } from '@/services/ws-client';
 import type { AdsCampaign, AdsCampaignsResponse, CachedCampaignsData } from '@/types';
 import {
   saveCampaignsToIdb,
@@ -79,36 +79,6 @@ export interface AccountFetchProgress {
 }
 
 // ============================================
-// SINGLETON TRANSMIT CLIENT FOR LIVE FETCH COUNTS
-// ============================================
-
-let sharedTransmit: Transmit | null = null;
-
-function getSharedTransmit(): Transmit {
-  if (!sharedTransmit) {
-    sharedTransmit = new Transmit({
-      baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:8443',
-      eventSourceFactory: (url, options) => {
-        return new EventSource(url, { ...options, withCredentials: true });
-      },
-      beforeSubscribe: (request) => {
-        const token = localStorage.getItem('comops-access-token');
-        if (token) {
-          request.headers.set('Authorization', `Bearer ${token}`);
-        }
-      },
-      beforeUnsubscribe: (request) => {
-        const token = localStorage.getItem('comops-access-token');
-        if (token) {
-          request.headers.set('Authorization', `Bearer ${token}`);
-        }
-      },
-    });
-  }
-  return sharedTransmit;
-}
-
-// ============================================
 // MULTI-ACCOUNT HOOK (CONCURRENT QUEUE-BACKED SYNC)
 // ============================================
 
@@ -159,80 +129,69 @@ export function useMultiAccountAdsCampaigns(
     };
   }, [accountIds, status]);
 
-  // Subscribe to live SSE events for records progress across concurrent accounts
+  // Subscribe to live WebSocket events for records progress across concurrent accounts
   useEffect(() => {
     if (!user?.id) return;
-    const transmit = getSharedTransmit();
-    const subscription = transmit.subscription(`accounts/${user.id}`);
 
-    subscription
-      .create()
-      .then(() => {
-        subscription.onMessage((data: any) => {
-          if (data?.type === 'ads_fetch_progress' && data.accountId) {
-            const accId = data.accountId.toString();
-            const current = Number(data.currentRecords || 0);
-            const total = Number(data.totalRecords || 0);
-            const isDone = Boolean(data.isComplete || (total > 0 && current >= total));
+    const unsubscribe = wsClient.subscribe<Record<string, unknown>>(
+      `accounts/${user.id}`,
+      (data: any) => {
+      if (data?.type === 'ads_fetch_progress' && data.accountId) {
+        const accId = data.accountId.toString();
+        const current = Number(data.currentRecords || 0);
+        const total = Number(data.totalRecords || 0);
+        const isDone = Boolean(data.isComplete || (total > 0 && current >= total));
 
-            setAccountProgress((prev) => ({
-              ...prev,
-              [accId]: {
-                fetched: current,
-                total,
+        setAccountProgress((prev) => ({
+          ...prev,
+          [accId]: {
+            fetched: current,
+            total,
+            isComplete: isDone,
+          },
+        }));
+
+        // Live progressive streaming into TanStack Query cache and IndexedDB
+        if (data.newCampaigns && Array.isArray(data.newCampaigns) && data.newCampaigns.length > 0) {
+          queryClient.setQueryData<CachedCampaignsData>(
+            [...queryKeys.adsCampaigns.list(Number(data.accountId)), status],
+            (old) => {
+              const prev = old?.campaigns || [];
+              const seen = new Set(prev.map((c) => c.campaign_id));
+              const fresh = data.newCampaigns.filter((c: any) => !seen.has(c.campaign_id));
+              const merged = [...prev, ...fresh];
+
+              // Persist to client disk (IndexedDB) immediately so reload never loses data
+              saveCampaignsToIdb(
+                data.accountId,
+                status,
+                merged,
+                data.totalRecords || merged.length,
+              ).catch(() => {});
+
+              return {
+                campaigns: merged,
+                totalCount: data.totalRecords || merged.length,
                 isComplete: isDone,
-              },
-            }));
-
-            // Live progressive streaming into TanStack Query cache and IndexedDB
-            if (
-              data.newCampaigns &&
-              Array.isArray(data.newCampaigns) &&
-              data.newCampaigns.length > 0
-            ) {
-              queryClient.setQueryData<CachedCampaignsData>(
-                [...queryKeys.adsCampaigns.list(Number(data.accountId)), status],
-                (old) => {
-                  const prev = old?.campaigns || [];
-                  const seen = new Set(prev.map((c) => c.campaign_id));
-                  const fresh = data.newCampaigns.filter((c: any) => !seen.has(c.campaign_id));
-                  const merged = [...prev, ...fresh];
-
-                  // Persist to client disk (IndexedDB) immediately so reload never loses data
-                  saveCampaignsToIdb(
-                    data.accountId,
-                    status,
-                    merged,
-                    data.totalRecords || merged.length,
-                  ).catch(() => {});
-
-                  return {
-                    campaigns: merged,
-                    totalCount: data.totalRecords || merged.length,
-                    isComplete: isDone,
-                  };
-                },
-              );
-            }
-          } else if (data?.type === 'ads_fetch_error' && data.accountId) {
-            const accId = data.accountId.toString();
-            setAccountProgress((prev) => ({
-              ...prev,
-              [accId]: {
-                fetched: prev[accId]?.fetched || 0,
-                total: prev[accId]?.total || 0,
-                isComplete: true,
-              },
-            }));
-          }
-        });
-      })
-      .catch((err) => {
-        console.error('[Ads SSE] Subscription error:', err);
-      });
+              };
+            },
+          );
+        }
+      } else if (data?.type === 'ads_fetch_error' && data.accountId) {
+        const accId = data.accountId.toString();
+        setAccountProgress((prev) => ({
+          ...prev,
+          [accId]: {
+            fetched: prev[accId]?.fetched || 0,
+            total: prev[accId]?.total || 0,
+            isComplete: true,
+          },
+        }));
+      }
+    });
 
     return () => {
-      subscription.delete().catch(() => {});
+      unsubscribe();
     };
   }, [user?.id, status]);
 

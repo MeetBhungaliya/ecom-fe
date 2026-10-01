@@ -3,6 +3,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from 'sonner';
 import { queryClient } from '@/lib/query-client';
+import { WebSocketProvider } from '@/context/ws-context';
 
 /**
  * Providers — Composes all context providers in the correct order.
@@ -17,23 +18,25 @@ export function Providers({ children }: { children: React.ReactNode }) {
       disableTransitionOnChange
     >
       <QueryClientProvider client={queryClient}>
-        {children}
+        <WebSocketProvider>
+          {children}
 
-        {/* Toast notifications */}
-        <Toaster
-          position="top-center"
-          expand={false}
-          richColors
-          closeButton
-          theme="system"
-          toastOptions={{
-            className: 'font-sans',
-            duration: 4000,
-          }}
-        />
+          {/* Toast notifications */}
+          <Toaster
+            position="top-center"
+            expand={false}
+            richColors
+            closeButton
+            theme="system"
+            toastOptions={{
+              className: 'font-sans',
+              duration: 4000,
+            }}
+          />
 
-        {/* Query devtools — only in development */}
-        <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+          {/* Query devtools — only in development */}
+          <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+        </WebSocketProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );

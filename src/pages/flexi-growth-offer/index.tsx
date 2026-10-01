@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAccounts } from '@/hooks/use-accounts';
 import { useIsDesktop } from '@/hooks/use-media-query';
-import { useTransmitJob } from '@/hooks/use-transmit-job';
+import { useJobWs } from '@/hooks/use-job-ws';
 import { api } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
 import { useMarketplaceStore } from '@/store/marketplace.store';
@@ -161,7 +161,7 @@ export default function FlexiGrowthOfferPage() {
     logs,
     subscribeToJob,
     resetJobState,
-  } = useTransmitJob('flexi-growth-offer');
+  } = useJobWs('flexi-growth-offer');
 
   // State
   const [offerState, setOfferState] = useState<FlexiOfferConfig>({

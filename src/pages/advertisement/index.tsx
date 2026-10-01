@@ -12,7 +12,7 @@ import { useAccounts } from '@/hooks/use-accounts';
 import { useAdConfig } from '@/hooks/use-ad-config';
 import { useIsDesktop } from '@/hooks/use-media-query';
 import { PageLoader } from '@/app/router';
-import { useTransmitJob } from '@/hooks/use-transmit-job';
+import { useJobWs } from '@/hooks/use-job-ws';
 import { api } from '@/lib/api-client';
 import { cn } from '@/lib/cn';
 import { useMarketplaceStore } from '@/store/marketplace.store';
@@ -189,7 +189,7 @@ export default function AdvertisementDashboard() {
     logs,
     subscribeToJob,
     resetJobState,
-  } = useTransmitJob('ad-launch');
+  } = useJobWs('ad-launch');
 
   // Offer State
   const [flixOffer, setFlixOffer] = useState<FlixOfferConfig>({

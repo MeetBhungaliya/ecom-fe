@@ -3,7 +3,7 @@ import { DeleteAccountDialog } from '@/components/accounts/delete-account-dialog
 import { EditAccountDialog } from '@/components/accounts/edit-account-dialog';
 import { Switch } from '@/components/ui/switch';
 import { useAccounts, useRetryLogin, useUpdateAccount } from '@/hooks/use-accounts';
-import { useAccountsTransmit } from '@/hooks/use-accounts-transmit';
+import { useAccountsWs } from '@/hooks/use-accounts-ws';
 import type { MarketplaceAccount } from '@/types';
 import {
   Eye,
@@ -31,8 +31,8 @@ export default function AccountsListPage() {
   const { mutate: retryLogin } = useRetryLogin();
   const { mutate: updateAccount } = useUpdateAccount();
 
-  // Connect Transmit SSE for real-time session reconnection & status updates
-  useAccountsTransmit();
+  // Connect WebSocket for real-time session reconnection & status updates
+  useAccountsWs();
 
   const [reconnectingId, setReconnectingId] = useState<string | number | null>(null);
   const [togglingAutoAcceptId, setTogglingAutoAcceptId] = useState<string | number | null>(null);

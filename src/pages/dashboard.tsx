@@ -11,7 +11,7 @@ import { timeAgo } from '@/lib/date';
 import { formatCurrency, formatPercentage } from '@/lib/formatters';
 import { useAuthStore } from '@/store/auth.store';
 import { useMarketplaceStore } from '@/store/marketplace.store';
-import { Transmit } from '@adonisjs/transmit-client';
+import { useWebSocketChannel } from '@/context/ws-context';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
@@ -21,7 +21,7 @@ import {
   Clock,
   Package,
   ShoppingCart,
-  Trash2
+  Trash2,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -52,7 +52,10 @@ function formatCompactAmount(value: number): string {
   const truncate2 = (num: number) => {
     // Floor to 2 decimal places without rounding up
     const floored = Math.floor(num * 100) / 100;
-    return floored.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+    return floored
+      .toFixed(2)
+      .replace(/\.00$/, '')
+      .replace(/(\.\d)0$/, '$1');
   };
 
   if (abs >= 10000000) {
@@ -145,17 +148,11 @@ function AnimatedNumber({
   );
 }
 
-function AnimatedSingleNumber({
-  value,
-  colorClass,
-}: {
-  value: string;
-  colorClass?: string;
-}) {
+function AnimatedSingleNumber({ value, colorClass }: { value: string; colorClass?: string }) {
   const numericVal = parseFloat(value.replace(/,/g, '').replace(/[^0-9.]/g, ''));
   const isNumeric = !isNaN(numericVal);
   const hasDecimals = value.includes('.');
-  const decimalPlaces = hasDecimals ? (value.split('.')[1]?.match(/^\d+/)?.[0]?.length || 0) : 0;
+  const decimalPlaces = hasDecimals ? value.split('.')[1]?.match(/^\d+/)?.[0]?.length || 0 : 0;
   const prefix = value.match(/^[^\d]*/)?.[0] || '';
   const suffix = value.match(/[^\d]*$/)?.[0] || '';
 
@@ -266,12 +263,7 @@ function StatCard({
                 <AnimatedNumber value={value} tooltips={valueTooltips} colors={valueColors} />
               </div>
             ) : tooltip ? (
-              <InfoTooltip
-                content={tooltip}
-                side="top"
-                delayDuration={50}
-                className="select-none"
-              >
+              <InfoTooltip content={tooltip} side="top" delayDuration={50} className="select-none">
                 <span className="text-2xl sm:text-3xl font-extrabold tracking-tight transition-opacity hover:opacity-85">
                   <AnimatedNumber value={value} colors={valueColors} />
                 </span>
@@ -362,7 +354,6 @@ export default function DashboardPage() {
 
   const [activities, setActivities] = useState<DashboardActivity[]>([]);
   const [stats, setStats] = useState(INITIAL_STATS);
-  const transmitRef = useRef<Transmit | null>(null);
 
   // Sync DB activities with state
   useEffect(() => {
@@ -443,68 +434,26 @@ export default function DashboardPage() {
     }
   }, [statsData]);
 
-  // Transmit SSE Listener for Live Activities
-  useEffect(() => {
-    if (!user?.id) return;
+  // WebSocket Listener for Live Activities
+  useWebSocketChannel<{ type?: string; activity?: DashboardActivity }>(
+    user?.id ? `accounts/${user.id}` : null,
+    (data) => {
+      const activity = data?.activity;
+      if (data?.type === 'activity' && activity) {
+        if (isZeroOrdersActivity(activity)) return;
 
-    if (!transmitRef.current) {
-      transmitRef.current = new Transmit({
-        baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:3333',
-        eventSourceFactory: (url, options) => {
-          return new EventSource(url, { ...options, withCredentials: true });
-        },
-        beforeSubscribe: (request) => {
-          const token = localStorage.getItem('comops-access-token');
-          if (token) {
-            request.headers.set('Authorization', `Bearer ${token}`);
-          }
-        },
-        beforeUnsubscribe: (request) => {
-          const token = localStorage.getItem('comops-access-token');
-          if (token) {
-            request.headers.set('Authorization', `Bearer ${token}`);
-          }
-        },
-      });
-    }
-
-    const transmit = transmitRef.current;
-    let subscription: ReturnType<Transmit['subscription']> | null = null;
-
-    async function subscribe() {
-      if (!transmit || !user?.id) return;
-
-      try {
-        subscription = transmit.subscription(`accounts/${user.id}`);
-        await subscription.create();
-
-        subscription.onMessage((data: any) => {
-          if (data?.type === 'activity' && data.activity) {
-            if (isZeroOrdersActivity(data.activity)) return;
-
-            setActivities((prev) => {
-              // Avoid duplicates if same ID comes in
-              const filtered = prev.filter((item) => item.id !== data.activity.id);
-              return [data.activity, ...filtered];
-            });
-
-            // Invalidate query to fetch fresh orders count from Meesho API
-            queryClient.invalidateQueries({ queryKey: ['dashboard', 'stats'] });
-          }
+        setActivities((prev) => {
+          // Avoid duplicates if same ID comes in
+          const filtered = prev.filter((item) => item.id !== activity.id);
+          return [activity, ...filtered];
         });
-      } catch (err) {
-        console.error('Failed to subscribe to dashboard Transmit SSE:', err);
-      }
-    }
 
-    subscribe();
-
-    return () => {
-      if (subscription) {
-        subscription.delete().catch(() => {});
+        // Invalidate query to fetch fresh orders count from Meesho API
+        queryClient.invalidateQueries({ queryKey: ['dashboard', 'stats'] });
       }
-    };
-  }, [user?.id]);
+    },
+    Boolean(user?.id),
+  );
 
   const visibleActivities = activities.filter((activity) => !isZeroOrdersActivity(activity));
 
