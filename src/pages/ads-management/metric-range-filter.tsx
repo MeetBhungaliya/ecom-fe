@@ -161,7 +161,7 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
 ];
 
 interface MetricRangeFilterProps {
-  campaigns: AdsCampaign[];
+  aggregates?: Record<string, { min: number; max: number }>;
   filters: ActiveMetricFilters;
   onChange: (filters: ActiveMetricFilters) => void;
   filteredCount: number;
@@ -169,7 +169,7 @@ interface MetricRangeFilterProps {
 }
 
 export function MetricRangeFilter({
-  campaigns,
+  aggregates,
   filters,
   onChange,
   filteredCount,
@@ -183,35 +183,19 @@ export function MetricRangeFilter({
     [selectedMetricKey],
   );
 
-  // Calculate actual min, max, avg for the selected metric across currently available campaigns
+  // Use backend aggregates to establish stable absolute limits
   const metricStats = useMemo(() => {
-    if (campaigns.length === 0) {
-      return { min: 0, max: 100, avg: 0, count: 0 };
-    }
-    let min = Infinity;
-    let max = -Infinity;
-    let sum = 0;
-
-    campaigns.forEach((c) => {
-      const val = selectedDef.getValue(c);
-      if (val < min) min = val;
-      if (val > max) max = val;
-      sum += val;
-    });
-
-    if (min === Infinity) min = 0;
-    if (max === -Infinity) max = 100;
+    const agg = aggregates?.[selectedMetricKey];
+    let min = agg?.min ?? 0;
+    let max = agg?.max ?? 100;
     if (min === max) {
       max = min + (selectedDef.step || 10);
     }
-
     return {
       min: Math.floor(min),
       max: Math.ceil(max),
-      avg: sum / campaigns.length,
-      count: campaigns.length,
     };
-  }, [campaigns, selectedDef]);
+  }, [aggregates, selectedMetricKey, selectedDef]);
 
   // Current active filter for selected metric
   const currentFilter = filters[selectedMetricKey];
@@ -524,11 +508,6 @@ export function MetricRangeFilter({
                 {selectedDef.formatValue(metricStats.max)}
               </strong>
             </span>
-            {metricStats.count > 0 && (
-              <span className="text-[10px] text-zinc-400">
-                Avg: {selectedDef.formatValue(metricStats.avg)}
-              </span>
-            )}
           </div>
 
           {/* Quick Presets */}

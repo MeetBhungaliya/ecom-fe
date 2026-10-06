@@ -156,7 +156,10 @@ function AccountSelector({
         )}
       >
         {/* Avatar stack with fixed container footprint to eliminate width jumps */}
-        <span className="flex items-center justify-center shrink-0 w-[42px] h-[22px] overflow-hidden" aria-hidden="true">
+        <span
+          className="flex items-center justify-center shrink-0 w-[42px] h-[22px] overflow-hidden"
+          aria-hidden="true"
+        >
           {selected.length === 0 ? (
             <span className="inline-flex items-center justify-center w-[22px] h-[22px] rounded-full border border-dashed border-border/70 text-muted-foreground">
               <Users className="w-3 h-3" />
@@ -164,7 +167,11 @@ function AccountSelector({
           ) : (
             <span className="flex -space-x-2 shrink-0">
               {selected.slice(0, 2).map((acc, i) => (
-                <span key={acc.id} className="relative inline-flex shrink-0" style={{ zIndex: 10 - i }}>
+                <span
+                  key={acc.id}
+                  className="relative inline-flex shrink-0"
+                  style={{ zIndex: 10 - i }}
+                >
                   <Avatar name={acc.supplierData?.name || acc.email} size={22} />
                 </span>
               ))}

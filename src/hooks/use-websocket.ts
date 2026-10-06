@@ -38,7 +38,7 @@ export function useWebSocket(): WebSocketContextValue {
 export function useWebSocketChannel<T = unknown>(
   channel: string | null | undefined,
   onMessage: (data: T) => void,
-  enabled: boolean = true
+  enabled: boolean = true,
 ) {
   const { subscribe } = useWebSocket();
   const onMessageRef = useRef(onMessage);
