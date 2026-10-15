@@ -145,6 +145,7 @@ export default function AdsManagementPage() {
   } = useInfiniteAdsCampaigns(
     {
       accountIds: activeAccountIdsStr,
+      status: 'LIVE',
       search: debouncedSearch,
       sortBy: sorting[0]?.id,
       sortOrder: sorting[0] ? (sorting[0].desc ? 'desc' : 'asc') : undefined,

@@ -92,14 +92,17 @@ export function useInfiniteAdsCampaigns(
     const unsubscribe = wsClient.subscribe<Record<string, unknown>>(
       `accounts/${user.id}`,
       (data: any) => {
-        if (!data.accountId) return;
-        const accId = data.accountId.toString();
-
-        if (data.type === 'ads.sync.completed' && params.accountIds.includes(accId)) {
-          // Invalidate the infinite list to refetch from page 1
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.adsCampaigns.infiniteList(params),
-          });
+        if (
+          data.type === 'ads.sync.completed' ||
+          data.type === 'bulk_pause_completed' ||
+          data.type === 'campaign_paused'
+        ) {
+          if (!data.accountId || params.accountIds.includes(data.accountId.toString())) {
+            // Invalidate the infinite list to refetch from page 1
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.adsCampaigns.infiniteList(params),
+            });
+          }
         }
       },
     );
@@ -206,16 +209,40 @@ export function usePauseAdsCampaign() {
       );
     },
     onSuccess: (_, variables) => {
-      const campaignId = variables.campaign_id;
+      const campaignId = Number(variables.campaign_id);
       const accountId = variables.accountId;
 
-      // 1. Immediately update TanStack Query cache for this account
+      // 1. Invalidate infinite list queries for ads campaigns so fresh records are fetched
+      queryClient.invalidateQueries({
+        queryKey: [...queryKeys.adsCampaigns.all, 'infinite-list'],
+      });
+
+      // 2. Optimistically remove the paused campaign from all infinite list caches
+      queryClient.setQueriesData(
+        { queryKey: [...queryKeys.adsCampaigns.all, 'infinite-list'] },
+        (old: any) => {
+          if (!old || !old.pages) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page: any) => ({
+              ...page,
+              data: page.data?.filter((c: any) => Number(c.campaign_id) !== campaignId),
+              meta: {
+                ...page.meta,
+                total: Math.max(0, (page.meta?.total || 1) - 1),
+              },
+            })),
+          };
+        },
+      );
+
+      // 3. Update single account list cache if present
       if (accountId) {
         queryClient.setQueryData<CachedCampaignsData>(
           [...queryKeys.adsCampaigns.list(Number(accountId)), 'LIVE'],
           (old) => {
             if (!old || !old.campaigns) return old;
-            const remaining = old.campaigns.filter((c) => c.campaign_id !== campaignId);
+            const remaining = old.campaigns.filter((c) => Number(c.campaign_id) !== campaignId);
             return {
               ...old,
               campaigns: remaining,
@@ -223,10 +250,6 @@ export function usePauseAdsCampaign() {
             };
           },
         );
-      } else {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.adsCampaigns.all,
-        });
       }
 
       toast.success('Campaign paused successfully');
@@ -262,8 +285,33 @@ export function useBulkPauseAdsCampaigns() {
     },
     onSuccess: (_, variables) => {
       const items = variables.items;
+      const pausedIds = new Set(items.map((it) => Number(it.campaign_id)));
 
-      // Group by accountId to update caches
+      // 1. Invalidate infinite list queries
+      queryClient.invalidateQueries({
+        queryKey: [...queryKeys.adsCampaigns.all, 'infinite-list'],
+      });
+
+      // 2. Optimistically remove paused campaigns from all infinite list caches
+      queryClient.setQueriesData(
+        { queryKey: [...queryKeys.adsCampaigns.all, 'infinite-list'] },
+        (old: any) => {
+          if (!old || !old.pages) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page: any) => ({
+              ...page,
+              data: page.data?.filter((c: any) => !pausedIds.has(Number(c.campaign_id))),
+              meta: {
+                ...page.meta,
+                total: Math.max(0, (page.meta?.total || pausedIds.size) - pausedIds.size),
+              },
+            })),
+          };
+        },
+      );
+
+      // 3. Group by accountId to update single account list caches
       const byAccount = new Map<string, number[]>();
       for (const it of items) {
         const accId = it.accountId.toString();
@@ -272,18 +320,18 @@ export function useBulkPauseAdsCampaigns() {
         byAccount.set(accId, list);
       }
 
-      byAccount.forEach((pausedIds, accId) => {
-        const pausedSet = new Set(pausedIds);
+      byAccount.forEach((pIds, accId) => {
+        const pSet = new Set(pIds);
 
         queryClient.setQueryData<CachedCampaignsData>(
           [...queryKeys.adsCampaigns.list(Number(accId)), 'LIVE'],
           (old) => {
             if (!old || !old.campaigns) return old;
-            const remaining = old.campaigns.filter((c) => !pausedSet.has(c.campaign_id));
+            const remaining = old.campaigns.filter((c) => !pSet.has(c.campaign_id));
             return {
               ...old,
               campaigns: remaining,
-              totalCount: Math.max(0, (old.totalCount || remaining.length) - pausedIds.length),
+              totalCount: Math.max(0, (old.totalCount || remaining.length) - pIds.length),
             };
           },
         );
