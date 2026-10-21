@@ -63,6 +63,7 @@ export interface InfiniteAdsParams {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   limit?: number;
+  paginate?: boolean;
   // numeric filters
   budgetMin?: number;
   budgetMax?: number;
@@ -92,11 +93,19 @@ export function useInfiniteAdsCampaigns(
     const unsubscribe = wsClient.subscribe<Record<string, unknown>>(
       `accounts/${user.id}`,
       (data: any) => {
-        if (
-          data.type === 'ads.sync.completed' ||
-          data.type === 'bulk_pause_completed' ||
-          data.type === 'campaign_paused'
-        ) {
+        if (data.type === 'ads.sync.completed') {
+          if (!data.accountId || params.accountIds.includes(data.accountId.toString())) {
+            toast.success('Meesho Ads sync completed successfully');
+            // Invalidate the infinite list to refetch from page 1
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.adsCampaigns.infiniteList(params),
+            });
+          }
+        } else if (data.type === 'ads.sync.failed') {
+          if (!data.accountId || params.accountIds.includes(data.accountId.toString())) {
+            toast.error(data.error || 'Meesho Ads sync failed');
+          }
+        } else if (data.type === 'bulk_pause_completed' || data.type === 'campaign_paused') {
           if (!data.accountId || params.accountIds.includes(data.accountId.toString())) {
             // Invalidate the infinite list to refetch from page 1
             queryClient.invalidateQueries({
@@ -119,7 +128,8 @@ export function useInfiniteAdsCampaigns(
       const queryParams: Record<string, any> = {
         ...params,
         accountIds: params.accountIds.join(','),
-        cursor: pageParam,
+        paginate: params.paginate ?? true,
+        cursor: params.paginate === false ? undefined : pageParam,
       };
 
       const res = await api.get<{
@@ -145,7 +155,11 @@ export function useInfiniteAdsCampaigns(
       };
     },
     getNextPageParam: (lastPage) =>
-      lastPage.pagination.hasMore ? lastPage.pagination.nextCursor : undefined,
+      params.paginate === false
+        ? undefined
+        : lastPage.pagination.hasMore
+          ? lastPage.pagination.nextCursor
+          : undefined,
     initialPageParam: null as string | null,
     enabled: params.accountIds.length > 0,
     placeholderData: keepPreviousData,

@@ -7,6 +7,8 @@ import { useMarketplaceStore } from '@/store/marketplace.store';
 import { useInfiniteAdsCampaigns } from '@/hooks/use-ads-campaigns';
 import type { EnrichedAdsCampaign } from '@/hooks/use-ads-campaigns';
 import { useAdsSyncStore } from '@/store/ads.store';
+import { api } from '@/lib/api-client';
+import { toast } from 'sonner';
 import { features } from './table-features';
 import { columns } from './columns';
 import { cn } from '@/lib/cn';
@@ -18,6 +20,8 @@ import {
   ChevronDown,
   RotateCcw,
   SlidersHorizontal,
+  Layers,
+  Zap,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { MetricRangeFilter, type ActiveMetricFilters } from './metric-range-filter';
@@ -134,6 +138,9 @@ export default function AdsManagementPage() {
     return tableFilterAccountIds.length > 0 ? tableFilterAccountIds : enabledAccountIds;
   }, [tableFilterAccountIds, enabledAccountIds]);
 
+  // Pagination filter toggle state (default: paginated with 100/page)
+  const [isPaginated, setIsPaginated] = useState(true);
+
   const {
     data: queryData,
     fetchNextPage,
@@ -149,6 +156,7 @@ export default function AdsManagementPage() {
       search: debouncedSearch,
       sortBy: sorting[0]?.id,
       sortOrder: sorting[0] ? (sorting[0].desc ? 'desc' : 'asc') : undefined,
+      paginate: isPaginated,
       budgetMin: metricFilters.budget?.min,
       budgetMax: metricFilters.budget?.max,
       spentMin: metricFilters.budget_utilized?.min,
@@ -171,27 +179,69 @@ export default function AdsManagementPage() {
     return queryData?.pages.flatMap((page) => page.data) ?? [];
   }, [queryData]);
 
+  const totalDbCount = queryData?.pages?.[0]?.meta?.total ?? campaigns.length;
   const data = campaigns;
-  const accountFilteredData = campaigns; // placeholder for MetricRangeFilter prop
 
-  // Connect with TopBar global refresh button
+  // Connect with TopBar global refresh button: triggers on-demand Meesho sync for filtered account(s)
   const setAdsIsFetching = useAdsSyncStore((s) => s.setIsFetching);
   const setAdsRefreshHandler = useAdsSyncStore((s) => s.setRefreshHandler);
+  const [isSyncingMeesho, setIsSyncingMeesho] = useState(false);
 
   useEffect(() => {
-    setAdsIsFetching(campaignsFetching);
-  }, [campaignsFetching, setAdsIsFetching]);
+    setAdsIsFetching(campaignsFetching || isSyncingMeesho);
+  }, [campaignsFetching, isSyncingMeesho, setAdsIsFetching]);
 
   useEffect(() => {
     const handler = async () => {
-      refreshCampaigns();
+      if (activeAccountIdsStr.length === 0) {
+        toast.warning('No accounts selected to sync');
+        return;
+      }
+
+      setIsSyncingMeesho(true);
+      try {
+        const res = await api.post<{
+          success: boolean;
+          queued: boolean;
+          queuedCount: number;
+          message: string;
+        }>('/accounts/ads/campaigns/sync', {
+          accountIds: activeAccountIdsStr,
+        });
+
+        if (res.queued) {
+          toast.info(
+            res.message ||
+              `Sync started for ${activeAccountIdsStr.length} account(s) from Meesho...`,
+          );
+        } else {
+          toast.info(res.message || 'Sync is already running for these accounts');
+        }
+      } catch (err: any) {
+        console.error('Failed to trigger ads sync:', err);
+        toast.error(err?.message || 'Failed to start ads sync from Meesho');
+      } finally {
+        await refreshCampaigns();
+        setTimeout(() => setIsSyncingMeesho(false), 2000);
+      }
     };
+
     setAdsRefreshHandler(handler);
     return () => setAdsRefreshHandler(undefined);
-  }, [refreshCampaigns, setAdsRefreshHandler]);
+  }, [activeAccountIdsStr, refreshCampaigns, setAdsRefreshHandler]);
 
-  // Disable account campaign counts since we don't have all data in memory
-  const accountCampaignCounts: Record<string, number> = {};
+  // Campaign counts per account (computed from in-memory campaigns when all data is loaded)
+  const accountCampaignCounts = useMemo(() => {
+    if (isPaginated) return {};
+    const counts: Record<string, number> = {};
+    for (const c of campaigns) {
+      if (c.account_id) {
+        const id = c.account_id.toString();
+        counts[id] = (counts[id] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [campaigns, isPaginated]);
 
   // Table instance
   const table = useTable({
@@ -237,10 +287,16 @@ export default function AdsManagementPage() {
 
   useEffect(() => {
     const lastItem = virtualItems[virtualItems.length - 1];
-    if (lastItem && lastItem.index >= rows.length - 1 && hasNextPage && !isFetchingNextPage) {
+    if (
+      isPaginated &&
+      lastItem &&
+      lastItem.index >= rows.length - 1 &&
+      hasNextPage &&
+      !isFetchingNextPage
+    ) {
       fetchNextPage();
     }
-  }, [virtualItems, hasNextPage, isFetchingNextPage, fetchNextPage, rows.length]);
+  }, [virtualItems, hasNextPage, isFetchingNextPage, fetchNextPage, rows.length, isPaginated]);
   const paddingBottom =
     virtualItems.length > 0
       ? virtualizer.getTotalSize() - (virtualItems[virtualItems.length - 1]?.end ?? 0)
@@ -284,9 +340,9 @@ export default function AdsManagementPage() {
         <div className="px-6 py-5 space-y-3.5 border-b border-zinc-200/80 dark:border-zinc-800/80">
           {/* Row 1: Search, Range Filter, Refresh & Account Buttons */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            {/* Search Input & Range Filter */}
-            <div className="flex items-center gap-2.5">
-              <div className="relative w-64 sm:w-80 shrink-0">
+            {/* Search Input, Range Filter & Pagination Mode Toggle */}
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <div className="relative w-64 sm:w-72 shrink-0">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                 <input
                   type="text"
@@ -303,8 +359,44 @@ export default function AdsManagementPage() {
                 filters={metricFilters}
                 onChange={setMetricFilters}
                 filteredCount={data.length}
-                totalCount={accountFilteredData.length}
+                totalCount={totalDbCount}
               />
+
+              {/* Pagination Mode Toggle (Paginated 100 vs All Data) */}
+              <div
+                className="flex items-center bg-zinc-100 dark:bg-zinc-800/50 p-1 rounded-lg border border-zinc-200 dark:border-zinc-700/50"
+                role="group"
+                aria-label="Pagination mode toggle"
+              >
+                <button
+                  type="button"
+                  onClick={() => setIsPaginated(true)}
+                  className={cn(
+                    'flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono rounded-md transition-all cursor-pointer select-none',
+                    isPaginated
+                      ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-xs font-medium'
+                      : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200',
+                  )}
+                  title="Paginated mode (default: 100 items per batch with infinite scroll)"
+                >
+                  <Layers className="h-3.5 w-3.5" />
+                  <span>100 / Page</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPaginated(false)}
+                  className={cn(
+                    'flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono rounded-md transition-all cursor-pointer select-none',
+                    !isPaginated
+                      ? 'bg-[#0ea5e9] text-white shadow-xs font-semibold'
+                      : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200',
+                  )}
+                  title="All Data mode: loads all campaigns without pagination for complete data analysis"
+                >
+                  <Zap className="h-3.5 w-3.5" />
+                  <span>All Data</span>
+                </button>
+              </div>
             </div>
 
             {/* Right Toolbar: Account Selector Pills */}
@@ -375,19 +467,40 @@ export default function AdsManagementPage() {
 
             {/* Row and Selection Count */}
             <div className="flex items-center gap-3 text-[10px] font-mono text-zinc-400 tracking-widest uppercase">
-              {campaignsFetching && (
+              {(campaignsFetching || isSyncingMeesho) && (
                 <div className="flex items-center gap-1.5 text-[#0ea5e9] bg-[#0ea5e9]/10 px-2 py-0.5 rounded border border-[#0ea5e9]/20 font-bold">
                   <span className="relative flex h-1.5 w-1.5 shrink-0">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#0ea5e9] opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#0ea5e9]"></span>
                   </span>
-                  <span>FETCHING</span>
+                  <span>{isSyncingMeesho ? 'SYNCING FROM MEESHO' : 'FETCHING'}</span>
                 </div>
               )}
-              {Object.keys(metricFilters).length > 0 ? (
+              {!isPaginated ? (
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 font-bold text-[9px] tracking-normal">
+                    <Zap className="h-2.5 w-2.5" />
+                    ALL DATA
+                  </span>
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                    {rows.length} {rows.length === 1 ? 'CAMPAIGN' : 'CAMPAIGNS'}
+                  </span>
+                  {Object.keys(metricFilters).length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setMetricFilters({})}
+                      className="px-1.5 py-0.5 text-[9px] font-mono font-semibold text-[#0ea5e9] hover:text-white hover:bg-[#0ea5e9] border border-[#0ea5e9]/40 rounded tracking-wider uppercase transition-colors cursor-pointer"
+                      title="Reset all range filters"
+                    >
+                      CLEAR FILTERS
+                    </button>
+                  )}
+                  <span>· {selectedCount} SELECTED</span>
+                </div>
+              ) : Object.keys(metricFilters).length > 0 ? (
                 <div className="flex items-center gap-2">
                   <span className="text-[#0ea5e9] font-semibold">
-                    {rows.length} OF {accountFilteredData.length} ROWS
+                    {rows.length} OF {totalDbCount} ROWS
                   </span>
                   <button
                     type="button"
@@ -401,7 +514,8 @@ export default function AdsManagementPage() {
                 </div>
               ) : (
                 <span>
-                  {rows.length} ROWS · {selectedCount} SELECTED
+                  {rows.length < totalDbCount ? `${rows.length} OF ${totalDbCount}` : rows.length}{' '}
+                  ROWS · {selectedCount} SELECTED
                 </span>
               )}
               {selectedCount > 0 && (

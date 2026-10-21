@@ -58,14 +58,16 @@ interface RefreshButtonProps {
   isRefreshing: boolean;
   disabled: boolean;
   onClick: () => void;
+  title?: string;
 }
 
-function RefreshButton({ isRefreshing, disabled, onClick }: RefreshButtonProps) {
+function RefreshButton({ isRefreshing, disabled, onClick, title }: RefreshButtonProps) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      aria-label="Refresh data"
+      aria-label={title || 'Refresh data'}
+      title={title || 'Refresh data'}
       className={cn(
         'relative flex items-center justify-center w-[38px] h-[38px] shrink-0 rounded-xl',
         'bg-muted/60 border border-border/40 text-muted-foreground',
@@ -374,6 +376,11 @@ export function TopBar() {
         isRefreshing={isRefreshing || (pathname === '/ads-management' && adsIsFetching)}
         disabled={isRefreshDisabled}
         onClick={handleRefresh}
+        title={
+          pathname === '/ads-management'
+            ? 'Resync ads from Meesho for selected account(s)'
+            : 'Refresh data'
+        }
       />
 
       {/* Account Selector */}
