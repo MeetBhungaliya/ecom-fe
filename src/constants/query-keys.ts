@@ -96,7 +96,6 @@ export const queryKeys = {
   // Ads Campaigns
   adsCampaigns: {
     all: ['ads-campaigns'] as const,
-    list: (accountId?: number) => [...queryKeys.adsCampaigns.all, 'list', accountId] as const,
     infiniteList: (filters: any) =>
       [...queryKeys.adsCampaigns.all, 'infinite-list', filters] as const,
   },

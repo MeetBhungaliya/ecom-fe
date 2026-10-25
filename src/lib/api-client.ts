@@ -55,6 +55,11 @@ export function setTokens(access: string, refresh: string) {
   } catch {
     // Storage full or unavailable
   }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('auth:token-updated', { detail: { accessToken: access } }),
+    );
+  }
 }
 
 export function clearTokens() {
@@ -65,6 +70,9 @@ export function clearTokens() {
     localStorage.removeItem(TOKEN_KEYS.refresh);
   } catch {
     // Ignore
+  }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('auth:token-cleared'));
   }
 }
 
@@ -268,6 +276,14 @@ class ApiClient {
   delete<T>(url: string, signal?: AbortSignal): Promise<T> {
     return this.request<T>({ method: 'DELETE', url, signal });
   }
+
+  refresh(): Promise<boolean> {
+    return this.refreshAccessToken();
+  }
 }
 
 export const api = new ApiClient(API_BASE_URL);
+
+export function refreshSession(): Promise<boolean> {
+  return api.refresh();
+}

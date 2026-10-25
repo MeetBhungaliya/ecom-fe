@@ -80,7 +80,7 @@ const initialState: JobState = {
  * 1. Server-authoritative counts
  * 2. Deduplication via processed-item ID Set
  * 3. Monotonic progress (never goes backward)
- * 4. REST fetch on subscribe for reload/late-join recovery
+ * 4. Active jobs recovery on mount via /jobs/active
  * 5. Uses shared WsClient singleton with auto-reconnect
  *
  * @param jobType - e.g. 'flexi-growth-offer' or 'ad-launch' — used to check for active jobs on mount
@@ -309,19 +309,6 @@ export function useJobWs(jobType?: string) {
     ) => {
       callbacksRef.current = callbacks || {};
       processedIdsRef.current = new Set();
-
-      // First fetch state from REST (late join / reload recovery)
-      try {
-        const response = await api.get<{ data: PersistedJobState }>(
-          `/jobs/${encodeURIComponent(channelName)}/state`,
-        );
-        if (response?.data) {
-          applyPersistedState(response.data);
-        }
-      } catch {
-        // Job is new
-      }
-
       setActiveChannel(channelName);
     },
     [],

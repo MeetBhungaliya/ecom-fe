@@ -10,6 +10,8 @@
  * - Message queueing during disconnects
  */
 
+import { refreshSession } from '@/lib/api-client';
+
 export type WsStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 
 export type WsMessageCallback<T = unknown> = (data: T) => void;
@@ -20,6 +22,8 @@ export class WsClient {
 
   private socket: WebSocket | null = null;
   private status: WsStatus = 'disconnected';
+  private isAuthenticated = false;
+  private authTimeout: ReturnType<typeof setTimeout> | null = null;
   private subscriptions: Map<string, Set<WsMessageCallback>> = new Map();
   private statusListeners: Set<WsStatusCallback> = new Set();
   private messageQueue: string[] = [];
@@ -31,15 +35,38 @@ export class WsClient {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   private pingTimer: ReturnType<typeof setInterval> | null = null;
-  private pingInterval = 25000;
+  private pingInterval = 20000;
 
   private manualClose = false;
+
+  private constructor() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('auth:token-updated', (e: Event) => {
+        const detail = (e as CustomEvent<{ accessToken?: string }>).detail;
+        if (detail?.accessToken) {
+          this.setToken(detail.accessToken);
+        }
+      });
+      window.addEventListener('auth:token-cleared', () => {
+        this.disconnect();
+      });
+    }
+  }
 
   public static getInstance(): WsClient {
     if (!WsClient.instance) {
       WsClient.instance = new WsClient();
     }
     return WsClient.instance;
+  }
+
+  /**
+   * Dynamically update token or re-authenticate an open socket
+   */
+  public setToken(token: string): void {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.send({ action: 'auth', token });
+    }
   }
 
   /**
@@ -122,6 +149,10 @@ export class WsClient {
     return this.status === 'connected';
   }
 
+  public isSocketAuthenticated(): boolean {
+    return this.isAuthenticated;
+  }
+
   /**
    * Listen to status changes
    */
@@ -192,17 +223,22 @@ export class WsClient {
   private handleOpen(): void {
     this.setStatus('connected');
     this.reconnectAttempts = 0;
+    this.isAuthenticated = false;
 
     // Send in-band authentication message in case token wasn't in URL
     const token =
       typeof window !== 'undefined' ? localStorage.getItem('comops-access-token') : null;
     if (token) {
       this.send({ action: 'auth', token });
-    }
 
-    // Resubscribe to all active channels
-    for (const channel of this.subscriptions.keys()) {
-      this.send({ action: 'subscribe', channel });
+      // Fallback: If server does not reply with 'authenticated' within 1.5s, subscribe anyway
+      if (this.authTimeout) clearTimeout(this.authTimeout);
+      this.authTimeout = setTimeout(() => {
+        this.subscribeActiveChannels();
+      }, 1500);
+    } else {
+      // Unauthenticated socket: subscribe immediately to public channels
+      this.subscribeActiveChannels();
     }
 
     // Flush queued messages
@@ -214,6 +250,12 @@ export class WsClient {
     }
 
     this.startHeartbeat();
+  }
+
+  private subscribeActiveChannels(): void {
+    for (const channel of this.subscriptions.keys()) {
+      this.send({ action: 'subscribe', channel });
+    }
   }
 
   private handleMessage(event: MessageEvent): void {
@@ -235,6 +277,32 @@ export class WsClient {
       return;
     }
 
+    // Handle authenticated event from server
+    if (parsed.event === 'authenticated') {
+      this.isAuthenticated = true;
+      if (this.authTimeout) {
+        clearTimeout(this.authTimeout);
+        this.authTimeout = null;
+      }
+      this.subscribeActiveChannels();
+      return;
+    }
+
+    // Handle authentication failure
+    if (parsed.event === 'auth_error') {
+      console.warn('[WS] Authentication error:', parsed.message);
+      this.isAuthenticated = false;
+      refreshSession().then((refreshed) => {
+        if (refreshed) {
+          const newToken = localStorage.getItem('comops-access-token');
+          if (newToken && this.socket && this.socket.readyState === WebSocket.OPEN) {
+            this.send({ action: 'auth', token: newToken });
+          }
+        }
+      });
+      return;
+    }
+
     // Handle channel broadcasts
     const channel = (parsed.channel || parsed.topic) as string | undefined;
     if (channel) {
@@ -253,7 +321,11 @@ export class WsClient {
     }
   }
 
-  private handleClose(_event: CloseEvent): void {
+  private handleClose(event: CloseEvent): void {
+    console.log(
+      `[WS] Closed (code: ${event.code}, reason: ${event.reason || 'none'}, wasClean: ${event.wasClean})`,
+    );
+    this.isAuthenticated = false;
     this.clearTimers();
     this.socket = null;
 
@@ -326,6 +398,10 @@ export class WsClient {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
+    }
+    if (this.authTimeout) {
+      clearTimeout(this.authTimeout);
+      this.authTimeout = null;
     }
   }
 }

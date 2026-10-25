@@ -6,27 +6,12 @@ import { queryClient } from '@/lib/query-client';
 import { queryKeys } from '@/constants/query-keys';
 import { useAuthStore } from '@/store/auth.store';
 import { wsClient } from '@/services/ws-client';
-import type { AdsCampaign, AdsCampaignsResponse, CachedCampaignsData } from '@/types';
+import type { AdsCampaign } from '@/types';
 
 // ============================================
 // ADS CAMPAIGNS HOOKS
-// Fetches 100% of campaigns per account in order.
-// Cached in TanStack Query (in-memory). PostgreSQL backed.
+// PostgreSQL backed multi-account query.
 // ============================================
-
-export function useAdsCampaigns(accountId?: number, status: string = 'LIVE') {
-  return useQuery({
-    queryKey: [...queryKeys.adsCampaigns.list(accountId), status],
-    queryFn: () =>
-      api.get<AdsCampaignsResponse>(`/accounts/ads/campaigns/${accountId}`, { status }),
-    select: (res) => res.data?.campaigns ?? [],
-    enabled: !!accountId,
-    staleTime: 10 * 60 * 1000,
-    retry: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-  });
-}
 
 export type EnrichedAdsCampaign = AdsCampaign & {
   account_id?: string | number;
@@ -224,7 +209,6 @@ export function usePauseAdsCampaign() {
     },
     onSuccess: (_, variables) => {
       const campaignId = Number(variables.campaign_id);
-      const accountId = variables.accountId;
 
       // 1. Invalidate infinite list queries for ads campaigns so fresh records are fetched
       queryClient.invalidateQueries({
@@ -249,22 +233,6 @@ export function usePauseAdsCampaign() {
           };
         },
       );
-
-      // 3. Update single account list cache if present
-      if (accountId) {
-        queryClient.setQueryData<CachedCampaignsData>(
-          [...queryKeys.adsCampaigns.list(Number(accountId)), 'LIVE'],
-          (old) => {
-            if (!old || !old.campaigns) return old;
-            const remaining = old.campaigns.filter((c) => Number(c.campaign_id) !== campaignId);
-            return {
-              ...old,
-              campaigns: remaining,
-              totalCount: Math.max(0, (old.totalCount || remaining.length) - 1),
-            };
-          },
-        );
-      }
 
       toast.success('Campaign paused successfully');
     },
@@ -324,32 +292,6 @@ export function useBulkPauseAdsCampaigns() {
           };
         },
       );
-
-      // 3. Group by accountId to update single account list caches
-      const byAccount = new Map<string, number[]>();
-      for (const it of items) {
-        const accId = it.accountId.toString();
-        const list = byAccount.get(accId) || [];
-        list.push(it.campaign_id);
-        byAccount.set(accId, list);
-      }
-
-      byAccount.forEach((pIds, accId) => {
-        const pSet = new Set(pIds);
-
-        queryClient.setQueryData<CachedCampaignsData>(
-          [...queryKeys.adsCampaigns.list(Number(accId)), 'LIVE'],
-          (old) => {
-            if (!old || !old.campaigns) return old;
-            const remaining = old.campaigns.filter((c) => !pSet.has(c.campaign_id));
-            return {
-              ...old,
-              campaigns: remaining,
-              totalCount: Math.max(0, (old.totalCount || remaining.length) - pIds.length),
-            };
-          },
-        );
-      });
 
       toast.success(`Queued pause for ${items.length} campaigns`);
     },

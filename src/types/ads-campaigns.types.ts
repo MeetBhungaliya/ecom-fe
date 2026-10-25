@@ -48,24 +48,3 @@ export type AdsCampaign = {
   // Allow additional fields if any
   [key: string]: unknown;
 };
-
-export type CachedCampaignsData = {
-  campaigns: AdsCampaign[];
-  totalCount: number;
-  isComplete?: boolean;
-  /** True if a background Meesho sync is currently running for this account */
-  syncing?: boolean;
-  /** ISO timestamp of the last successful sync completion */
-  lastSyncAt?: string | null;
-  lastSyncStatus?: 'RUNNING' | 'SUCCESS' | 'FAILED' | null;
-};
-
-/**
- * Response shape from our backend GET /accounts/ads/campaigns/:accountId
- */
-export type AdsCampaignsResponse = {
-  data: CachedCampaignsData;
-  cached?: boolean;
-  stale?: boolean;
-  warning?: string;
-};
