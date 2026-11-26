@@ -231,7 +231,10 @@ export default function AdvertisementDashboard() {
   const addCatalogIds = useCallback((ids: string[]) => {
     setFlixOffer((prev) => {
       const newIds = new Set(prev.catalogIds);
-      ids.forEach((id) => newIds.add(id));
+      ids.forEach((id) => {
+        const cleaned = id.replace(/['"\[\]]/g, '').trim();
+        if (cleaned) newIds.add(cleaned);
+      });
       return { ...prev, catalogIds: Array.from(newIds) };
     });
     setErrors((prev) => ({ ...prev, catalogIds: '' }));
@@ -244,8 +247,8 @@ export default function AdvertisementDashboard() {
       if (val) {
         addCatalogIds(
           val
-            .split(',')
-            .map((s) => s.trim())
+            .split(/[\n,]/)
+            .map((s) => s.replace(/['"\[\]]/g, '').trim())
             .filter(Boolean),
         );
         setCatalogInput('');
@@ -259,7 +262,7 @@ export default function AdvertisementDashboard() {
     if (pasted) {
       const ids = pasted
         .split(/[\n,]/)
-        .map((s) => s.trim())
+        .map((s) => s.replace(/['"\[\]]/g, '').trim())
         .filter(Boolean);
       addCatalogIds(ids);
     }
@@ -294,10 +297,13 @@ export default function AdvertisementDashboard() {
     try {
       const startTime = formatLocalISO(flixOffer.startDate, flixOffer.startTime);
       const endTime = formatLocalISO(flixOffer.endDate, flixOffer.endTime);
+      const cleanedCatalogIds = flixOffer.catalogIds
+        .map((cid) => cid.replace(/['"\[\]]/g, '').trim())
+        .filter(Boolean);
 
       const response = await api.post<{ jobId: string }>('/accounts/advertisement', {
         accountId: currentAccount.id,
-        catalogIds: flixOffer.catalogIds,
+        catalogIds: cleanedCatalogIds,
         startTime,
         endTime,
         dynamicFieldValues: flixOffer.dynamicFieldValues,
@@ -324,7 +330,9 @@ export default function AdvertisementDashboard() {
     try {
       const startTime = formatLocalISO(flixOffer.startDate, flixOffer.startTime);
       const endTime = formatLocalISO(flixOffer.endDate, flixOffer.endTime);
-      const retryCatalogIds = failedItems.map((i) => i.catalogId).filter(Boolean) as string[];
+      const retryCatalogIds = failedItems
+        .map((i) => i.catalogId?.replace(/['"\[\]]/g, '').trim())
+        .filter(Boolean) as string[];
 
       const response = await api.post<{ jobId: string }>('/accounts/advertisement/retry', {
         accountId: currentAccount.id,
